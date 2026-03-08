@@ -1,0 +1,137 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Fonts */
+@font-face {
+  font-family: "Bricolage Grotesque";
+  src: url("/assets/fonts/BricolageGrotesque[opsz,wdth,wght].woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "General Sans";
+  src: url("/assets/fonts/GeneralSans-Variable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@layer base {
+  :root {
+    --radius: 0.5rem;
+
+    /* Farm-themed palette: Deep Forest Green + Warm Amber */
+    --background: 0.97 0.008 95;
+    --foreground: 0.18 0.03 140;
+    --card: 0.99 0.004 95;
+    --card-foreground: 0.18 0.03 140;
+    --popover: 0.99 0.004 95;
+    --popover-foreground: 0.18 0.03 140;
+
+    /* Primary: Deep forest green */
+    --primary: 0.38 0.1 152;
+    --primary-foreground: 0.97 0.004 95;
+
+    /* Secondary: Warm cream */
+    --secondary: 0.94 0.02 95;
+    --secondary-foreground: 0.38 0.1 152;
+
+    /* Muted: Light sage */
+    --muted: 0.92 0.015 140;
+    --muted-foreground: 0.45 0.04 152;
+
+    /* Accent: Warm amber */
+    --accent: 0.88 0.08 85;
+    --accent-foreground: 0.25 0.06 60;
+
+    /* Destructive */
+    --destructive: 0.577 0.245 27.325;
+    --destructive-foreground: 0.985 0 0;
+
+    --border: 0.88 0.02 140;
+    --input: 0.88 0.02 140;
+    --ring: 0.38 0.1 152;
+
+    /* Semantic colors */
+    --success: 0.6 0.15 152;
+    --success-foreground: 0.97 0 0;
+    --warning: 0.75 0.14 75;
+    --warning-foreground: 0.2 0.04 60;
+
+    /* Charts */
+    --chart-1: 0.55 0.15 152;
+    --chart-2: 0.65 0.14 75;
+    --chart-3: 0.5 0.18 27;
+    --chart-4: 0.7 0.1 200;
+    --chart-5: 0.45 0.12 30;
+
+    /* Sidebar */
+    --sidebar: 0.22 0.06 152;
+    --sidebar-foreground: 0.92 0.015 140;
+    --sidebar-primary: 0.75 0.14 75;
+    --sidebar-primary-foreground: 0.18 0.04 60;
+    --sidebar-accent: 0.30 0.07 152;
+    --sidebar-accent-foreground: 0.92 0.015 140;
+    --sidebar-border: 0.30 0.05 152;
+    --sidebar-ring: 0.75 0.14 75;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: "General Sans", sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: "Bricolage Grotesque", sans-serif;
+  }
+}
+
+/* Grain texture overlay for depth */
+.grain-overlay {
+  position: relative;
+}
+.grain-overlay::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events: none;
+  border-radius: inherit;
+  z-index: 0;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: oklch(var(--muted));
+}
+::-webkit-scrollbar-thumb {
+  background: oklch(var(--border));
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: oklch(var(--muted-foreground));
+}
+
+/* Status badges */
+.badge-pending {
+  background-color: oklch(0.95 0.08 75);
+  color: oklch(0.35 0.1 60);
+  border-color: oklch(0.85 0.1 75);
+}
+
+.badge-paid {
+  background-color: oklch(0.92 0.08 152);
+  color: oklch(0.25 0.1 152);
+  border-color: oklch(0.75 0.12 152);
+}
