@@ -20,6 +20,20 @@ export const AdvancePayment = IDL.Record({
   'note' : IDL.Text,
   'amount' : IDL.Float64,
 });
+export const Animal = IDL.Record({
+  'id' : IDL.Nat,
+  'name' : IDL.Text,
+  'serialNumber' : IDL.Text,
+  'notes' : IDL.Text,
+  'animalType' : IDL.Text,
+  'semenDate' : IDL.Text,
+});
+export const BuyerAdvancePayment = IDL.Record({
+  'id' : IDL.Nat,
+  'date' : IDL.Text,
+  'amount' : IDL.Float64,
+  'reason' : IDL.Text,
+});
 export const UserProfile = IDL.Record({ 'name' : IDL.Text });
 export const Expense = IDL.Record({
   'id' : IDL.Nat,
@@ -54,6 +68,16 @@ export const idlService = IDL.Service({
       [IDL.Nat],
       [],
     ),
+  'addAnimal' : IDL.Func(
+      [IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+      [IDL.Nat],
+      [],
+    ),
+  'addBuyerAdvancePayment' : IDL.Func(
+      [IDL.Text, IDL.Float64, IDL.Text],
+      [IDL.Nat],
+      [],
+    ),
   'addExpense' : IDL.Func(
       [IDL.Text, IDL.Text, IDL.Float64, IDL.Text, IDL.Text],
       [IDL.Nat],
@@ -75,10 +99,18 @@ export const idlService = IDL.Service({
   'addStaffMember' : IDL.Func([IDL.Text, IDL.Text, IDL.Float64], [IDL.Nat], []),
   'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
   'deleteAdvancePayment' : IDL.Func([IDL.Nat], [], []),
+  'deleteAnimal' : IDL.Func([IDL.Nat], [], []),
+  'deleteBuyerAdvancePayment' : IDL.Func([IDL.Nat], [], []),
   'deleteExpense' : IDL.Func([IDL.Nat], [], []),
   'deleteMilkRecord' : IDL.Func([IDL.Nat], [], []),
   'deleteStaffMember' : IDL.Func([IDL.Nat], [], []),
   'getAdvancePayments' : IDL.Func([], [IDL.Vec(AdvancePayment)], ['query']),
+  'getAnimals' : IDL.Func([], [IDL.Vec(Animal)], ['query']),
+  'getBuyerAdvancePayments' : IDL.Func(
+      [],
+      [IDL.Vec(BuyerAdvancePayment)],
+      ['query'],
+    ),
   'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
   'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
   'getExpenses' : IDL.Func([], [IDL.Vec(Expense)], ['query']),
@@ -92,6 +124,16 @@ export const idlService = IDL.Service({
   'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
   'markExpensePaid' : IDL.Func([IDL.Nat], [], []),
   'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
+  'updateAnimal' : IDL.Func(
+      [IDL.Nat, IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+      [],
+      [],
+    ),
+  'updateBuyerAdvancePayment' : IDL.Func(
+      [IDL.Nat, IDL.Text, IDL.Float64, IDL.Text],
+      [],
+      [],
+    ),
   'updateExpense' : IDL.Func(
       [IDL.Nat, IDL.Text, IDL.Text, IDL.Float64, IDL.Text, IDL.Text],
       [],
@@ -133,6 +175,20 @@ export const idlFactory = ({ IDL }) => {
     'note' : IDL.Text,
     'amount' : IDL.Float64,
   });
+  const Animal = IDL.Record({
+    'id' : IDL.Nat,
+    'name' : IDL.Text,
+    'serialNumber' : IDL.Text,
+    'notes' : IDL.Text,
+    'animalType' : IDL.Text,
+    'semenDate' : IDL.Text,
+  });
+  const BuyerAdvancePayment = IDL.Record({
+    'id' : IDL.Nat,
+    'date' : IDL.Text,
+    'amount' : IDL.Float64,
+    'reason' : IDL.Text,
+  });
   const UserProfile = IDL.Record({ 'name' : IDL.Text });
   const Expense = IDL.Record({
     'id' : IDL.Nat,
@@ -167,6 +223,16 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Nat],
         [],
       ),
+    'addAnimal' : IDL.Func(
+        [IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+        [IDL.Nat],
+        [],
+      ),
+    'addBuyerAdvancePayment' : IDL.Func(
+        [IDL.Text, IDL.Float64, IDL.Text],
+        [IDL.Nat],
+        [],
+      ),
     'addExpense' : IDL.Func(
         [IDL.Text, IDL.Text, IDL.Float64, IDL.Text, IDL.Text],
         [IDL.Nat],
@@ -192,10 +258,18 @@ export const idlFactory = ({ IDL }) => {
       ),
     'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
     'deleteAdvancePayment' : IDL.Func([IDL.Nat], [], []),
+    'deleteAnimal' : IDL.Func([IDL.Nat], [], []),
+    'deleteBuyerAdvancePayment' : IDL.Func([IDL.Nat], [], []),
     'deleteExpense' : IDL.Func([IDL.Nat], [], []),
     'deleteMilkRecord' : IDL.Func([IDL.Nat], [], []),
     'deleteStaffMember' : IDL.Func([IDL.Nat], [], []),
     'getAdvancePayments' : IDL.Func([], [IDL.Vec(AdvancePayment)], ['query']),
+    'getAnimals' : IDL.Func([], [IDL.Vec(Animal)], ['query']),
+    'getBuyerAdvancePayments' : IDL.Func(
+        [],
+        [IDL.Vec(BuyerAdvancePayment)],
+        ['query'],
+      ),
     'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
     'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
     'getExpenses' : IDL.Func([], [IDL.Vec(Expense)], ['query']),
@@ -209,6 +283,16 @@ export const idlFactory = ({ IDL }) => {
     'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
     'markExpensePaid' : IDL.Func([IDL.Nat], [], []),
     'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
+    'updateAnimal' : IDL.Func(
+        [IDL.Nat, IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+        [],
+        [],
+      ),
+    'updateBuyerAdvancePayment' : IDL.Func(
+        [IDL.Nat, IDL.Text, IDL.Float64, IDL.Text],
+        [],
+        [],
+      ),
     'updateExpense' : IDL.Func(
         [IDL.Nat, IDL.Text, IDL.Text, IDL.Float64, IDL.Text, IDL.Text],
         [],

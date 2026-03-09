@@ -1,11 +1,32 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   AdvancePayment,
+  Animal,
+  BuyerAdvancePayment,
   Expense,
   MilkRecord,
   StaffMember,
 } from "../backend.d";
 import { useActor } from "./useActor";
+
+// ─── Admin Role ──────────────────────────────────────────────────────────────
+
+export function useIsAdmin() {
+  const { actor, isFetching } = useActor();
+  return useQuery<boolean>({
+    queryKey: ["isAdmin"],
+    queryFn: async () => {
+      if (!actor) return false;
+      try {
+        return await actor.isCallerAdmin();
+      } catch {
+        return false;
+      }
+    },
+    enabled: !!actor && !isFetching,
+    staleTime: 1000 * 60 * 5, // cache for 5 minutes
+  });
+}
 
 // ─── Milk Records ───────────────────────────────────────────────────────────
 
@@ -300,5 +321,148 @@ export function useDeleteAdvancePayment() {
       queryClient.invalidateQueries({ queryKey: ["advancePayments"] });
       queryClient.invalidateQueries({ queryKey: ["staffMembers"] });
     },
+  });
+}
+
+// ─── Buyer Advance Payments ──────────────────────────────────────────────────
+
+export function useGetBuyerAdvancePayments() {
+  const { actor, isFetching } = useActor();
+  return useQuery<BuyerAdvancePayment[]>({
+    queryKey: ["buyerAdvancePayments"],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.getBuyerAdvancePayments();
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+
+export function useAddBuyerAdvancePayment() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: {
+      date: string;
+      amount: number;
+      reason: string;
+    }) => {
+      if (!actor) throw new Error("Not connected");
+      return actor.addBuyerAdvancePayment(data.date, data.amount, data.reason);
+    },
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["buyerAdvancePayments"] }),
+  });
+}
+
+export function useUpdateBuyerAdvancePayment() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: {
+      id: bigint;
+      date: string;
+      amount: number;
+      reason: string;
+    }) => {
+      if (!actor) throw new Error("Not connected");
+      return actor.updateBuyerAdvancePayment(
+        data.id,
+        data.date,
+        data.amount,
+        data.reason,
+      );
+    },
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["buyerAdvancePayments"] }),
+  });
+}
+
+export function useDeleteBuyerAdvancePayment() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: bigint) => {
+      if (!actor) throw new Error("Not connected");
+      return actor.deleteBuyerAdvancePayment(id);
+    },
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["buyerAdvancePayments"] }),
+  });
+}
+
+// ─── Animals ─────────────────────────────────────────────────────────────────
+
+export function useGetAnimals() {
+  const { actor, isFetching } = useActor();
+  return useQuery<Animal[]>({
+    queryKey: ["animals"],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.getAnimals();
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+
+export function useAddAnimal() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: {
+      serialNumber: string;
+      animalType: string;
+      name: string;
+      semenDate: string;
+      notes: string;
+    }) => {
+      if (!actor) throw new Error("Not connected");
+      return actor.addAnimal(
+        data.serialNumber,
+        data.animalType,
+        data.name,
+        data.semenDate,
+        data.notes,
+      );
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["animals"] }),
+  });
+}
+
+export function useUpdateAnimal() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: {
+      id: bigint;
+      serialNumber: string;
+      animalType: string;
+      name: string;
+      semenDate: string;
+      notes: string;
+    }) => {
+      if (!actor) throw new Error("Not connected");
+      return actor.updateAnimal(
+        data.id,
+        data.serialNumber,
+        data.animalType,
+        data.name,
+        data.semenDate,
+        data.notes,
+      );
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["animals"] }),
+  });
+}
+
+export function useDeleteAnimal() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: bigint) => {
+      if (!actor) throw new Error("Not connected");
+      return actor.deleteAnimal(id);
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["animals"] }),
   });
 }

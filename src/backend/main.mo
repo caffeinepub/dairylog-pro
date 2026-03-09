@@ -22,9 +22,7 @@ actor {
   let userProfiles = Map.empty<Principal, UserProfile>();
 
   public query ({ caller }) func getCallerUserProfile() : async ?UserProfile {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Runtime.trap("Unauthorized: Only users can view profiles");
-    };
+    authCheck(caller, "Unauthorized: Must be authenticated");
     userProfiles.get(caller);
   };
 
@@ -36,9 +34,7 @@ actor {
   };
 
   public shared ({ caller }) func saveCallerUserProfile(profile : UserProfile) : async () {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Runtime.trap("Unauthorized: Only users can save profiles");
-    };
+    authCheck(caller, "Unauthorized: Must be authenticated");
     userProfiles.add(caller, profile);
   };
 
@@ -78,6 +74,22 @@ actor {
     note : Text;
   };
 
+  type BuyerAdvancePayment = {
+    id : Nat;
+    date : Text;
+    amount : Float;
+    reason : Text;
+  };
+
+  type Animal = {
+    id : Nat;
+    serialNumber : Text;
+    animalType : Text;
+    name : Text;
+    semenDate : Text;
+    notes : Text;
+  };
+
   let milkRecords = Map.empty<Nat, MilkRecord>();
   var nextMilkRecordId = 0;
 
@@ -90,7 +102,66 @@ actor {
   let advancePayments = Map.empty<Nat, AdvancePayment>();
   var nextAdvancePaymentId = 0;
 
-  // MilkRecord operations - require user role
+  let buyerAdvancePayments = Map.empty<Nat, BuyerAdvancePayment>();
+  var nextBuyerAdvancePaymentId = 0;
+
+  let animals = Map.empty<Nat, Animal>();
+  var nextAnimalId = 0;
+
+  //---------------------------------------------------------------------------
+  // Helper function for authentication check (non-anonymous)
+  //---------------------------------------------------------------------------
+  func authCheck(principal : Principal, errorMsg : Text) : () {
+    if (principal.isAnonymous()) {
+      Runtime.trap(errorMsg);
+    };
+  };
+
+  func findMilkRecord(id : Nat) : MilkRecord {
+    switch (milkRecords.get(id)) {
+      case (null) { Runtime.trap("Milk record not found") };
+      case (?record) { record };
+    };
+  };
+
+  func findExpense(id : Nat) : Expense {
+    switch (expenses.get(id)) {
+      case (null) { Runtime.trap("Expense not found") };
+      case (?expense) { expense };
+    };
+  };
+
+  func findStaffMember(id : Nat) : StaffMember {
+    switch (staffMembers.get(id)) {
+      case (null) { Runtime.trap("Staff member not found") };
+      case (?staff) { staff };
+    };
+  };
+
+  func findAdvancePayment(id : Nat) : AdvancePayment {
+    switch (advancePayments.get(id)) {
+      case (null) { Runtime.trap("Advance payment not found") };
+      case (?payment) { payment };
+    };
+  };
+
+  func findBuyerAdvancePayment(id : Nat) : BuyerAdvancePayment {
+    switch (buyerAdvancePayments.get(id)) {
+      case (null) { Runtime.trap("Buyer advance payment not found") };
+      case (?payment) { payment };
+    };
+  };
+
+  func findAnimal(id : Nat) : Animal {
+    switch (animals.get(id)) {
+      case (null) { Runtime.trap("Animal not found") };
+      case (?animal) { animal };
+    };
+  };
+
+  //---------------------------------------------------------------------------
+  // MilkRecord operations - require non-anonymous access
+  //---------------------------------------------------------------------------
   public shared ({ caller }) func addMilkRecord(
     date : Text,
     morningQuantity : Float,
@@ -100,9 +171,7 @@ actor {
     eveningFat : Float,
     eveningAmount : Float,
   ) : async Nat {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Runtime.trap("Unauthorized: Only users can add milk records");
-    };
+    authCheck(caller, "Unauthorized: Must be authenticated");
 
     let id = nextMilkRecordId;
     nextMilkRecordId += 1;
@@ -132,53 +201,45 @@ actor {
     eveningFat : Float,
     eveningAmount : Float,
   ) : async () {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Runtime.trap("Unauthorized: Only users can update milk records");
-    };
+    authCheck(caller, "Unauthorized: Must be authenticated");
+    let _ = findMilkRecord(id);
 
-    switch (milkRecords.get(id)) {
-      case (null) { Runtime.trap("Milk record not found") };
-      case (?_) {
-        let updatedRecord : MilkRecord = {
-          id;
-          date;
-          morningQuantity;
-          morningFat;
-          morningAmount;
-          eveningQuantity;
-          eveningFat;
-          eveningAmount;
-        };
-        milkRecords.add(id, updatedRecord);
-      };
+    let updatedRecord : MilkRecord = {
+      id;
+      date;
+      morningQuantity;
+      morningFat;
+      morningAmount;
+      eveningQuantity;
+      eveningFat;
+      eveningAmount;
     };
+    milkRecords.add(id, updatedRecord);
   };
 
   public shared ({ caller }) func deleteMilkRecord(id : Nat) : async () {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Runtime.trap("Unauthorized: Only users can delete milk records");
-    };
+    authCheck(caller, "Unauthorized: Must be authenticated");
+    let _ = findMilkRecord(id);
 
-    switch (milkRecords.get(id)) {
-      case (null) { Runtime.trap("Milk record not found") };
-      case (?_) {
-        milkRecords.remove(id);
-      };
-    };
+    milkRecords.remove(id);
   };
 
   public query ({ caller }) func getMilkRecords() : async [MilkRecord] {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Runtime.trap("Unauthorized: Only users can view milk records");
-    };
+    authCheck(caller, "Unauthorized: Must be authenticated");
     milkRecords.values().toArray();
   };
 
-  // Expense operations - require admin role (financial data)
-  public shared ({ caller }) func addExpense(date : Text, description : Text, amount : Float, category : Text, status : Text) : async Nat {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
-      Runtime.trap("Unauthorized: Only admins can add expenses");
-    };
+  //---------------------------------------------------------------------------
+  // Expense operations - require non-anonymous access
+  //---------------------------------------------------------------------------
+  public shared ({ caller }) func addExpense(
+    date : Text,
+    description : Text,
+    amount : Float,
+    category : Text,
+    status : Text,
+  ) : async Nat {
+    authCheck(caller, "Unauthorized: Must be authenticated");
 
     let id = nextExpenseId;
     nextExpenseId += 1;
@@ -196,73 +257,60 @@ actor {
     id;
   };
 
-  public shared ({ caller }) func updateExpense(id : Nat, date : Text, description : Text, amount : Float, category : Text, status : Text) : async () {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
-      Runtime.trap("Unauthorized: Only admins can update expenses");
-    };
+  public shared ({ caller }) func updateExpense(
+    id : Nat,
+    date : Text,
+    description : Text,
+    amount : Float,
+    category : Text,
+    status : Text,
+  ) : async () {
+    authCheck(caller, "Unauthorized: Must be authenticated");
+    let _ = findExpense(id);
 
-    switch (expenses.get(id)) {
-      case (null) { Runtime.trap("Expense not found") };
-      case (?_) {
-        let updatedExpense : Expense = {
-          id;
-          date;
-          description;
-          amount;
-          category;
-          status;
-        };
-        expenses.add(id, updatedExpense);
-      };
+    let updatedExpense : Expense = {
+      id;
+      date;
+      description;
+      amount;
+      category;
+      status;
     };
+    expenses.add(id, updatedExpense);
   };
 
   public shared ({ caller }) func deleteExpense(id : Nat) : async () {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
-      Runtime.trap("Unauthorized: Only admins can delete expenses");
-    };
+    authCheck(caller, "Unauthorized: Must be authenticated");
+    let _ = findExpense(id);
 
-    switch (expenses.get(id)) {
-      case (null) { Runtime.trap("Expense not found") };
-      case (?_) {
-        expenses.remove(id);
-      };
-    };
+    expenses.remove(id);
   };
 
   public query ({ caller }) func getExpenses() : async [Expense] {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
-      Runtime.trap("Unauthorized: Only admins can view expenses");
-    };
+    authCheck(caller, "Unauthorized: Must be authenticated");
     expenses.values().toArray();
   };
 
   public shared ({ caller }) func markExpensePaid(id : Nat) : async () {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
-      Runtime.trap("Unauthorized: Only admins can mark expenses as paid");
-    };
+    authCheck(caller, "Unauthorized: Must be authenticated");
+    let expense = findExpense(id);
 
-    switch (expenses.get(id)) {
-      case (null) { Runtime.trap("Expense not found") };
-      case (?expense) {
-        let updatedExpense : Expense = {
-          id = expense.id;
-          date = expense.date;
-          description = expense.description;
-          amount = expense.amount;
-          category = expense.category;
-          status = "paid";
-        };
-        expenses.add(id, updatedExpense);
-      };
+    let updatedExpense : Expense = {
+      id = expense.id;
+      date = expense.date;
+      description = expense.description;
+      amount = expense.amount;
+      category = expense.category;
+      status = "paid";
     };
+    expenses.add(id, updatedExpense);
   };
 
-  // StaffMember operations - require admin role (sensitive HR data)
+  //---------------------------------------------------------------------------
+  // StaffMember operations - require non-anonymous access
+  //---------------------------------------------------------------------------
   public shared ({ caller }) func addStaffMember(name : Text, role : Text, monthlySalary : Float) : async Nat {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
-      Runtime.trap("Unauthorized: Only admins can add staff members");
-    };
+    authCheck(caller, "Unauthorized: Must be authenticated");
 
     let id = nextStaffMemberId;
     nextStaffMemberId += 1;
@@ -280,98 +328,70 @@ actor {
   };
 
   public shared ({ caller }) func updateStaffMember(id : Nat, name : Text, role : Text, monthlySalary : Float) : async () {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
-      Runtime.trap("Unauthorized: Only admins can update staff members");
-    };
+    authCheck(caller, "Unauthorized: Must be authenticated");
+    let staff = findStaffMember(id);
 
-    switch (staffMembers.get(id)) {
-      case (null) { Runtime.trap("Staff member not found") };
-      case (?staff) {
-        let updatedStaff : StaffMember = {
-          id;
-          name;
-          role;
-          monthlySalary;
-          totalAdvancePaid = staff.totalAdvancePaid;
-        };
-        staffMembers.add(id, updatedStaff);
-      };
+    let updatedStaff : StaffMember = {
+      id;
+      name;
+      role;
+      monthlySalary;
+      totalAdvancePaid = staff.totalAdvancePaid;
     };
+    staffMembers.add(id, updatedStaff);
   };
 
   public shared ({ caller }) func deleteStaffMember(id : Nat) : async () {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
-      Runtime.trap("Unauthorized: Only admins can delete staff members");
-    };
+    authCheck(caller, "Unauthorized: Must be authenticated");
+    let _ = findStaffMember(id);
 
-    switch (staffMembers.get(id)) {
-      case (null) { Runtime.trap("Staff member not found") };
-      case (?_) {
-        staffMembers.remove(id);
-      };
-    };
+    staffMembers.remove(id);
   };
 
   public query ({ caller }) func getStaffMembers() : async [StaffMember] {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
-      Runtime.trap("Unauthorized: Only admins can view staff members");
-    };
+    authCheck(caller, "Unauthorized: Must be authenticated");
     staffMembers.values().toArray();
   };
 
-  // AdvancePayment operations - require admin role (financial data)
+  //---------------------------------------------------------------------------
+  // AdvancePayment operations - require non-anonymous access
+  //---------------------------------------------------------------------------
   public shared ({ caller }) func addAdvancePayment(staffId : Nat, date : Text, amount : Float, note : Text) : async Nat {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
-      Runtime.trap("Unauthorized: Only admins can add advance payments");
+    authCheck(caller, "Unauthorized: Must be authenticated");
+    let _ = findStaffMember(staffId);
+
+    let id = nextAdvancePaymentId;
+    nextAdvancePaymentId += 1;
+
+    let advancePayment : AdvancePayment = {
+      id;
+      staffId;
+      date;
+      amount;
+      note;
     };
 
-    // Check if staff member exists
-    switch (staffMembers.get(staffId)) {
-      case (null) { Runtime.trap("Staff member not found") };
-      case (?_) {
-        let id = nextAdvancePaymentId;
-        nextAdvancePaymentId += 1;
+    advancePayments.add(id, advancePayment);
 
-        let advancePayment : AdvancePayment = {
-          id;
-          staffId;
-          date;
-          amount;
-          note;
-        };
+    // Update totalAdvancePaid on StaffMember
+    updateTotalAdvancePaid(staffId);
 
-        // Add advance payment
-        advancePayments.add(id, advancePayment);
-
-        // Update totalAdvancePaid in staff member
-        updateTotalAdvancePaid(staffId);
-
-        id;
-      };
-    };
+    id;
   };
 
   public shared ({ caller }) func deleteAdvancePayment(id : Nat) : async () {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
-      Runtime.trap("Unauthorized: Only admins can delete advance payments");
-    };
+    authCheck(caller, "Unauthorized: Must be authenticated");
+    let payment = findAdvancePayment(id);
+    let staffId = payment.staffId;
 
-    switch (advancePayments.get(id)) {
-      case (null) { Runtime.trap("Advance payment not found") };
-      case (?payment) {
-        let staffId = payment.staffId;
-        // Remove advance payment
-        advancePayments.remove(id);
-        // Update totalAdvancePaid in staff member
-        updateTotalAdvancePaid(staffId);
-      };
-    };
+    advancePayments.remove(id);
+
+    // Update totalAdvancePaid on StaffMember
+    updateTotalAdvancePaid(staffId);
   };
 
   public query ({ caller }) func getAdvancePayments() : async [AdvancePayment] {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
-      Runtime.trap("Unauthorized: Only admins can view advance payments");
-    };
+    authCheck(caller, "Unauthorized: Must be authenticated");
     advancePayments.values().toArray();
   };
 
@@ -400,4 +420,112 @@ actor {
       };
     };
   };
+
+  //---------------------------------------------------------------------------
+  // BuyerAdvancePayment operations - require non-anonymous access
+  //---------------------------------------------------------------------------
+  public shared ({ caller }) func addBuyerAdvancePayment(date : Text, amount : Float, reason : Text) : async Nat {
+    authCheck(caller, "Unauthorized: Must be authenticated");
+
+    let id = nextBuyerAdvancePaymentId;
+    nextBuyerAdvancePaymentId += 1;
+
+    let buyerAdvancePayment : BuyerAdvancePayment = {
+      id;
+      date;
+      amount;
+      reason;
+    };
+
+    buyerAdvancePayments.add(id, buyerAdvancePayment);
+    id;
+  };
+
+  public shared ({ caller }) func updateBuyerAdvancePayment(id : Nat, date : Text, amount : Float, reason : Text) : async () {
+    authCheck(caller, "Unauthorized: Must be authenticated");
+    let _ = findBuyerAdvancePayment(id);
+
+    let updatedPayment : BuyerAdvancePayment = {
+      id;
+      date;
+      amount;
+      reason;
+    };
+    buyerAdvancePayments.add(id, updatedPayment);
+  };
+
+  public shared ({ caller }) func deleteBuyerAdvancePayment(id : Nat) : async () {
+    authCheck(caller, "Unauthorized: Must be authenticated");
+    let _ = findBuyerAdvancePayment(id);
+
+    buyerAdvancePayments.remove(id);
+  };
+
+  public query ({ caller }) func getBuyerAdvancePayments() : async [BuyerAdvancePayment] {
+    authCheck(caller, "Unauthorized: Must be authenticated");
+    buyerAdvancePayments.values().toArray();
+  };
+
+  //---------------------------------------------------------------------------
+  // Animal operations - require non-anonymous access
+  //---------------------------------------------------------------------------
+  public shared ({ caller }) func addAnimal(
+    serialNumber : Text,
+    animalType : Text,
+    name : Text,
+    semenDate : Text,
+    notes : Text,
+  ) : async Nat {
+    authCheck(caller, "Unauthorized: Must be authenticated");
+
+    let id = nextAnimalId;
+    nextAnimalId += 1;
+
+    let animal : Animal = {
+      id;
+      serialNumber;
+      animalType;
+      name;
+      semenDate;
+      notes;
+    };
+
+    animals.add(id, animal);
+    id;
+  };
+
+  public shared ({ caller }) func updateAnimal(
+    id : Nat,
+    serialNumber : Text,
+    animalType : Text,
+    name : Text,
+    semenDate : Text,
+    notes : Text,
+  ) : async () {
+    authCheck(caller, "Unauthorized: Must be authenticated");
+    let _ = findAnimal(id);
+
+    let updatedAnimal : Animal = {
+      id;
+      serialNumber;
+      animalType;
+      name;
+      semenDate;
+      notes;
+    };
+    animals.add(id, updatedAnimal);
+  };
+
+  public shared ({ caller }) func deleteAnimal(id : Nat) : async () {
+    authCheck(caller, "Unauthorized: Must be authenticated");
+    let _ = findAnimal(id);
+
+    animals.remove(id);
+  };
+
+  public query ({ caller }) func getAnimals() : async [Animal] {
+    authCheck(caller, "Unauthorized: Must be authenticated");
+    animals.values().toArray();
+  };
 };
+

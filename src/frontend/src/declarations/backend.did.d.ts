@@ -17,6 +17,20 @@ export interface AdvancePayment {
   'note' : string,
   'amount' : number,
 }
+export interface Animal {
+  'id' : bigint,
+  'name' : string,
+  'serialNumber' : string,
+  'notes' : string,
+  'animalType' : string,
+  'semenDate' : string,
+}
+export interface BuyerAdvancePayment {
+  'id' : bigint,
+  'date' : string,
+  'amount' : number,
+  'reason' : string,
+}
 export interface Expense {
   'id' : bigint,
   'status' : string,
@@ -49,6 +63,8 @@ export type UserRole = { 'admin' : null } |
 export interface _SERVICE {
   '_initializeAccessControlWithSecret' : ActorMethod<[string], undefined>,
   'addAdvancePayment' : ActorMethod<[bigint, string, number, string], bigint>,
+  'addAnimal' : ActorMethod<[string, string, string, string, string], bigint>,
+  'addBuyerAdvancePayment' : ActorMethod<[string, number, string], bigint>,
   'addExpense' : ActorMethod<[string, string, number, string, string], bigint>,
   'addMilkRecord' : ActorMethod<
     [string, number, number, number, number, number, number],
@@ -57,10 +73,14 @@ export interface _SERVICE {
   'addStaffMember' : ActorMethod<[string, string, number], bigint>,
   'assignCallerUserRole' : ActorMethod<[Principal, UserRole], undefined>,
   'deleteAdvancePayment' : ActorMethod<[bigint], undefined>,
+  'deleteAnimal' : ActorMethod<[bigint], undefined>,
+  'deleteBuyerAdvancePayment' : ActorMethod<[bigint], undefined>,
   'deleteExpense' : ActorMethod<[bigint], undefined>,
   'deleteMilkRecord' : ActorMethod<[bigint], undefined>,
   'deleteStaffMember' : ActorMethod<[bigint], undefined>,
   'getAdvancePayments' : ActorMethod<[], Array<AdvancePayment>>,
+  'getAnimals' : ActorMethod<[], Array<Animal>>,
+  'getBuyerAdvancePayments' : ActorMethod<[], Array<BuyerAdvancePayment>>,
   'getCallerUserProfile' : ActorMethod<[], [] | [UserProfile]>,
   'getCallerUserRole' : ActorMethod<[], UserRole>,
   'getExpenses' : ActorMethod<[], Array<Expense>>,
@@ -70,6 +90,14 @@ export interface _SERVICE {
   'isCallerAdmin' : ActorMethod<[], boolean>,
   'markExpensePaid' : ActorMethod<[bigint], undefined>,
   'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
+  'updateAnimal' : ActorMethod<
+    [bigint, string, string, string, string, string],
+    undefined
+  >,
+  'updateBuyerAdvancePayment' : ActorMethod<
+    [bigint, string, number, string],
+    undefined
+  >,
   'updateExpense' : ActorMethod<
     [bigint, string, string, number, string, string],
     undefined

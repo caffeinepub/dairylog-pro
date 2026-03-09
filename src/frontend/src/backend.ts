@@ -106,6 +106,12 @@ export interface MilkRecord {
     date: string;
     morningFat: number;
 }
+export interface BuyerAdvancePayment {
+    id: bigint;
+    date: string;
+    amount: number;
+    reason: string;
+}
 export interface Expense {
     id: bigint;
     status: string;
@@ -124,6 +130,14 @@ export interface AdvancePayment {
 export interface UserProfile {
     name: string;
 }
+export interface Animal {
+    id: bigint;
+    name: string;
+    serialNumber: string;
+    notes: string;
+    animalType: string;
+    semenDate: string;
+}
 export enum UserRole {
     admin = "admin",
     user = "user",
@@ -132,15 +146,21 @@ export enum UserRole {
 export interface backendInterface {
     _initializeAccessControlWithSecret(userSecret: string): Promise<void>;
     addAdvancePayment(staffId: bigint, date: string, amount: number, note: string): Promise<bigint>;
+    addAnimal(serialNumber: string, animalType: string, name: string, semenDate: string, notes: string): Promise<bigint>;
+    addBuyerAdvancePayment(date: string, amount: number, reason: string): Promise<bigint>;
     addExpense(date: string, description: string, amount: number, category: string, status: string): Promise<bigint>;
     addMilkRecord(date: string, morningQuantity: number, morningFat: number, morningAmount: number, eveningQuantity: number, eveningFat: number, eveningAmount: number): Promise<bigint>;
     addStaffMember(name: string, role: string, monthlySalary: number): Promise<bigint>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
     deleteAdvancePayment(id: bigint): Promise<void>;
+    deleteAnimal(id: bigint): Promise<void>;
+    deleteBuyerAdvancePayment(id: bigint): Promise<void>;
     deleteExpense(id: bigint): Promise<void>;
     deleteMilkRecord(id: bigint): Promise<void>;
     deleteStaffMember(id: bigint): Promise<void>;
     getAdvancePayments(): Promise<Array<AdvancePayment>>;
+    getAnimals(): Promise<Array<Animal>>;
+    getBuyerAdvancePayments(): Promise<Array<BuyerAdvancePayment>>;
     getCallerUserProfile(): Promise<UserProfile | null>;
     getCallerUserRole(): Promise<UserRole>;
     getExpenses(): Promise<Array<Expense>>;
@@ -150,6 +170,8 @@ export interface backendInterface {
     isCallerAdmin(): Promise<boolean>;
     markExpensePaid(id: bigint): Promise<void>;
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
+    updateAnimal(id: bigint, serialNumber: string, animalType: string, name: string, semenDate: string, notes: string): Promise<void>;
+    updateBuyerAdvancePayment(id: bigint, date: string, amount: number, reason: string): Promise<void>;
     updateExpense(id: bigint, date: string, description: string, amount: number, category: string, status: string): Promise<void>;
     updateMilkRecord(id: bigint, date: string, morningQuantity: number, morningFat: number, morningAmount: number, eveningQuantity: number, eveningFat: number, eveningAmount: number): Promise<void>;
     updateStaffMember(id: bigint, name: string, role: string, monthlySalary: number): Promise<void>;
@@ -182,6 +204,34 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.addAdvancePayment(arg0, arg1, arg2, arg3);
+            return result;
+        }
+    }
+    async addAnimal(arg0: string, arg1: string, arg2: string, arg3: string, arg4: string): Promise<bigint> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.addAnimal(arg0, arg1, arg2, arg3, arg4);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.addAnimal(arg0, arg1, arg2, arg3, arg4);
+            return result;
+        }
+    }
+    async addBuyerAdvancePayment(arg0: string, arg1: number, arg2: string): Promise<bigint> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.addBuyerAdvancePayment(arg0, arg1, arg2);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.addBuyerAdvancePayment(arg0, arg1, arg2);
             return result;
         }
     }
@@ -255,6 +305,34 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async deleteAnimal(arg0: bigint): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.deleteAnimal(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.deleteAnimal(arg0);
+            return result;
+        }
+    }
+    async deleteBuyerAdvancePayment(arg0: bigint): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.deleteBuyerAdvancePayment(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.deleteBuyerAdvancePayment(arg0);
+            return result;
+        }
+    }
     async deleteExpense(arg0: bigint): Promise<void> {
         if (this.processError) {
             try {
@@ -308,6 +386,34 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.getAdvancePayments();
+            return result;
+        }
+    }
+    async getAnimals(): Promise<Array<Animal>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getAnimals();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getAnimals();
+            return result;
+        }
+    }
+    async getBuyerAdvancePayments(): Promise<Array<BuyerAdvancePayment>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getBuyerAdvancePayments();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getBuyerAdvancePayments();
             return result;
         }
     }
@@ -434,6 +540,34 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.saveCallerUserProfile(arg0);
+            return result;
+        }
+    }
+    async updateAnimal(arg0: bigint, arg1: string, arg2: string, arg3: string, arg4: string, arg5: string): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.updateAnimal(arg0, arg1, arg2, arg3, arg4, arg5);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.updateAnimal(arg0, arg1, arg2, arg3, arg4, arg5);
+            return result;
+        }
+    }
+    async updateBuyerAdvancePayment(arg0: bigint, arg1: string, arg2: number, arg3: string): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.updateBuyerAdvancePayment(arg0, arg1, arg2, arg3);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.updateBuyerAdvancePayment(arg0, arg1, arg2, arg3);
             return result;
         }
     }

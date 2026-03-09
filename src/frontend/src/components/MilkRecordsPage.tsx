@@ -1,4 +1,10 @@
 import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -28,18 +34,26 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  useAddBuyerAdvancePayment,
   useAddMilkRecord,
+  useDeleteBuyerAdvancePayment,
   useDeleteMilkRecord,
+  useGetBuyerAdvancePayments,
   useGetMilkRecords,
+  useUpdateBuyerAdvancePayment,
   useUpdateMilkRecord,
 } from "@/hooks/useQueries";
+import { currentMonthKey, groupByMonth } from "@/utils/groupByMonth";
 import {
   Droplets,
+  FolderOpen,
+  HandCoins,
   IndianRupee,
   Loader2,
   Moon,
   Pencil,
   Plus,
+  Printer,
   Sun,
   Trash2,
   TrendingUp,
@@ -47,7 +61,9 @@ import {
 import { motion } from "motion/react";
 import { useState } from "react";
 import { toast } from "sonner";
-import type { MilkRecord } from "../backend.d";
+import type { BuyerAdvancePayment, MilkRecord } from "../backend.d";
+
+const FAT_RATE = 9; // ₹9 per fat unit
 
 const today = () => new Date().toISOString().split("T")[0];
 
@@ -71,7 +87,19 @@ const emptyForm = (): FormData => ({
   eveningAmount: "",
 });
 
-export function MilkRecordsPage() {
+interface BuyerAdvanceForm {
+  date: string;
+  amount: string;
+  reason: string;
+}
+
+const emptyBuyerAdvanceForm = (): BuyerAdvanceForm => ({
+  date: today(),
+  amount: "",
+  reason: "",
+});
+
+export function MilkRecordsPage({ isAdmin = false }: { isAdmin?: boolean }) {
   const { data: records = [], isLoading } = useGetMilkRecords();
   const addMutation = useAddMilkRecord();
   const updateMutation = useUpdateMilkRecord();
@@ -82,9 +110,30 @@ export function MilkRecordsPage() {
   const [form, setForm] = useState<FormData>(emptyForm());
   const [deleteId, setDeleteId] = useState<bigint | null>(null);
 
+  // Buyer Advance Payments state
+  const { data: buyerAdvances = [], isLoading: buyerAdvancesLoading } =
+    useGetBuyerAdvancePayments();
+  const addBuyerAdvanceMutation = useAddBuyerAdvancePayment();
+  const updateBuyerAdvanceMutation = useUpdateBuyerAdvancePayment();
+  const deleteBuyerAdvanceMutation = useDeleteBuyerAdvancePayment();
+
+  const [buyerAdvanceDialogOpen, setBuyerAdvanceDialogOpen] = useState(false);
+  const [editingBuyerAdvance, setEditingBuyerAdvance] =
+    useState<BuyerAdvancePayment | null>(null);
+  const [buyerAdvanceForm, setBuyerAdvanceForm] = useState<BuyerAdvanceForm>(
+    emptyBuyerAdvanceForm(),
+  );
+  const [deleteBuyerAdvanceId, setDeleteBuyerAdvanceId] = useState<
+    bigint | null
+  >(null);
+
   const sorted = [...records].sort(
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
   );
+
+  const monthGroups = groupByMonth(records, (r) => r.date);
+  const advanceMonthGroups = groupByMonth(buyerAdvances, (a) => a.date);
+  const curMonthKey = currentMonthKey();
 
   const totalMorning = records.reduce((s, r) => s + r.morningQuantity, 0);
   const totalEvening = records.reduce((s, r) => s + r.eveningQuantity, 0);
@@ -141,6 +190,11 @@ export function MilkRecordsPage() {
       toast.error("Please fill all fields with valid values");
       return;
     }
+    if (editing) {
+      updateMutation.reset();
+    } else {
+      addMutation.reset();
+    }
     try {
       if (editing) {
         await updateMutation.mutateAsync({ id: editing.id, ...data });
@@ -156,17 +210,96 @@ export function MilkRecordsPage() {
   };
 
   const handleDelete = async () => {
-    if (!deleteId) return;
+    const id = deleteId;
+    if (id === null) return;
+    setDeleteId(null);
+    deleteMutation.reset();
     try {
-      await deleteMutation.mutateAsync(deleteId);
+      await deleteMutation.mutateAsync(id);
       toast.success("Record deleted");
-      setDeleteId(null);
     } catch {
       toast.error("Failed to delete record");
     }
   };
 
   const isPending = addMutation.isPending || updateMutation.isPending;
+
+  // Buyer Advance handlers
+  const openAddBuyerAdvance = () => {
+    setEditingBuyerAdvance(null);
+    setBuyerAdvanceForm(emptyBuyerAdvanceForm());
+    setBuyerAdvanceDialogOpen(true);
+  };
+
+  const openEditBuyerAdvance = (advance: BuyerAdvancePayment) => {
+    setEditingBuyerAdvance(advance);
+    setBuyerAdvanceForm({
+      date: advance.date,
+      amount: advance.amount.toString(),
+      reason: advance.reason,
+    });
+    setBuyerAdvanceDialogOpen(true);
+  };
+
+  const handleBuyerAdvanceSubmit = async () => {
+    const amount = Number.parseFloat(buyerAdvanceForm.amount);
+    if (
+      !buyerAdvanceForm.date ||
+      Number.isNaN(amount) ||
+      !buyerAdvanceForm.reason.trim()
+    ) {
+      toast.error("Please fill all fields with valid values");
+      return;
+    }
+    if (editingBuyerAdvance) {
+      updateBuyerAdvanceMutation.reset();
+    } else {
+      addBuyerAdvanceMutation.reset();
+    }
+    try {
+      if (editingBuyerAdvance) {
+        await updateBuyerAdvanceMutation.mutateAsync({
+          id: editingBuyerAdvance.id,
+          date: buyerAdvanceForm.date,
+          amount,
+          reason: buyerAdvanceForm.reason.trim(),
+        });
+        toast.success("Advance payment updated");
+      } else {
+        await addBuyerAdvanceMutation.mutateAsync({
+          date: buyerAdvanceForm.date,
+          amount,
+          reason: buyerAdvanceForm.reason.trim(),
+        });
+        toast.success("Advance payment recorded");
+      }
+      setBuyerAdvanceDialogOpen(false);
+    } catch {
+      toast.error("Operation failed. Please try again.");
+    }
+  };
+
+  const handleDeleteBuyerAdvance = async () => {
+    const id = deleteBuyerAdvanceId;
+    if (id === null) return;
+    setDeleteBuyerAdvanceId(null);
+    deleteBuyerAdvanceMutation.reset();
+    try {
+      await deleteBuyerAdvanceMutation.mutateAsync(id);
+      toast.success("Advance payment deleted");
+    } catch {
+      toast.error("Failed to delete advance payment");
+    }
+  };
+
+  const isBuyerAdvancePending =
+    addBuyerAdvanceMutation.isPending || updateBuyerAdvanceMutation.isPending;
+
+  const totalBuyerAdvances = buyerAdvances.reduce((s, a) => s + a.amount, 0);
+
+  const sortedBuyerAdvances = [...buyerAdvances].sort(
+    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+  );
 
   const summaryCards = [
     {
@@ -204,12 +337,52 @@ export function MilkRecordsPage() {
       color: "text-rose-600",
       bg: "bg-rose-50 dark:bg-rose-950/30",
     },
+    {
+      label: "Buyer Advances",
+      value: `₹${totalBuyerAdvances.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      icon: HandCoins,
+      color: "text-violet-600",
+      bg: "bg-violet-50 dark:bg-violet-950/30",
+    },
   ];
 
   return (
     <div className="animate-fade-in">
+      {/* Fun Milk Photo Strip */}
+      <div className="flex gap-3 mb-6 overflow-x-auto pb-1">
+        {[
+          {
+            src: "/assets/generated/milk-pour.dim_800x600.jpg",
+            alt: "Fresh milk being poured",
+          },
+          {
+            src: "/assets/generated/milk-bottles.dim_800x600.jpg",
+            alt: "Farm milk bottles",
+          },
+          {
+            src: "/assets/generated/milk-buckets.dim_800x600.jpg",
+            alt: "Milk buckets",
+          },
+          {
+            src: "/assets/generated/dairy-cow.dim_800x600.jpg",
+            alt: "Happy dairy cow",
+          },
+        ].map((photo) => (
+          <div
+            key={photo.src}
+            className="flex-shrink-0 w-40 h-28 rounded-xl overflow-hidden shadow-md border border-gray-200"
+          >
+            <img
+              src={photo.src}
+              alt={photo.alt}
+              className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+            />
+          </div>
+        ))}
+      </div>
+
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
         {summaryCards.map((card, i) => (
           <motion.div
             key={card.label}
@@ -239,15 +412,29 @@ export function MilkRecordsPage() {
           <h2 className="font-display font-semibold text-foreground">
             Daily Milk Records
           </h2>
-          <Button
-            size="sm"
-            onClick={openAdd}
-            data-ocid="milk.add_button"
-            className="gap-1.5"
-          >
-            <Plus className="h-4 w-4" />
-            Add Record
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => window.print()}
+              data-ocid="milk.print_button"
+              className="gap-1.5 no-print"
+            >
+              <Printer className="h-4 w-4" />
+              Print
+            </Button>
+            {isAdmin && (
+              <Button
+                size="sm"
+                onClick={openAdd}
+                data-ocid="milk.add_button"
+                className="gap-1.5"
+              >
+                <Plus className="h-4 w-4" />
+                Add Record
+              </Button>
+            )}
+          </div>
         </div>
 
         {isLoading ? (
@@ -264,125 +451,516 @@ export function MilkRecordsPage() {
             <Droplets className="h-12 w-12 mb-3 opacity-30" />
             <p className="font-medium">No milk records yet</p>
             <p className="text-sm mt-1">
-              Add your first daily record to get started
+              {isAdmin
+                ? "Add your first daily record to get started"
+                : "No records have been added yet"}
             </p>
-            <Button onClick={openAdd} className="mt-4 gap-1.5" size="sm">
-              <Plus className="h-4 w-4" />
-              Add First Record
-            </Button>
+            {isAdmin && (
+              <Button onClick={openAdd} className="mt-4 gap-1.5" size="sm">
+                <Plus className="h-4 w-4" />
+                Add First Record
+              </Button>
+            )}
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <Table data-ocid="milk.table">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead className="text-right">Morning (L)</TableHead>
-                  <TableHead className="text-right">Morning Fat %</TableHead>
-                  <TableHead className="text-right">Morning Amt (₹)</TableHead>
-                  <TableHead className="text-right">Evening (L)</TableHead>
-                  <TableHead className="text-right">Evening Fat %</TableHead>
-                  <TableHead className="text-right">Evening Amt (₹)</TableHead>
-                  <TableHead className="text-right">Total (L)</TableHead>
-                  <TableHead className="text-right">Total Amt (₹)</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {sorted.map((record, idx) => (
-                  <TableRow
-                    key={record.id.toString()}
-                    data-ocid={`milk.item.${idx + 1}`}
-                    className="hover:bg-muted/40"
-                  >
-                    <TableCell className="font-medium whitespace-nowrap">
-                      {new Date(`${record.date}T00:00:00`).toLocaleDateString(
-                        "en-IN",
-                        {
-                          day: "numeric",
-                          month: "short",
-                          year: "numeric",
-                        },
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <span className="text-amber-700 font-medium">
-                        {record.morningQuantity.toFixed(1)}
+          <Accordion
+            type="multiple"
+            defaultValue={[curMonthKey]}
+            className="divide-y divide-border"
+          >
+            {monthGroups.map((group, groupIdx) => {
+              const groupSorted = [...group.items].sort(
+                (a, b) =>
+                  new Date(b.date).getTime() - new Date(a.date).getTime(),
+              );
+              const totalL = group.items.reduce(
+                (s, r) => s + r.morningQuantity + r.eveningQuantity,
+                0,
+              );
+              const totalAmt = group.items.reduce(
+                (s, r) => s + (r.morningAmount || 0) + (r.eveningAmount || 0),
+                0,
+              );
+              return (
+                <AccordionItem
+                  key={group.monthKey}
+                  value={group.monthKey}
+                  data-ocid={`milk.month_group.${groupIdx + 1}`}
+                  className="border-0"
+                >
+                  <AccordionTrigger className="px-4 py-3 hover:bg-green-50/60 hover:no-underline rounded-none [&[data-state=open]]:bg-green-50/60">
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <FolderOpen className="h-4 w-4 text-green-600 flex-shrink-0" />
+                      <span className="font-semibold text-foreground">
+                        {group.label}
                       </span>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {record.morningFat.toFixed(2)}%
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <span className="text-amber-700 font-medium">
-                        ₹
-                        {(record.morningAmount || 0).toLocaleString("en-IN", {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
+                      <span className="ml-auto mr-3 flex-shrink-0 text-xs bg-green-100 text-green-700 border border-green-200 rounded-full px-2.5 py-0.5 font-medium">
+                        {group.items.length} day
+                        {group.items.length !== 1 ? "s" : ""} ·{" "}
+                        {totalL.toFixed(1)} L · ₹
+                        {totalAmt.toLocaleString("en-IN", {
+                          maximumFractionDigits: 0,
                         })}
                       </span>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <span className="text-indigo-700 font-medium">
-                        {record.eveningQuantity.toFixed(1)}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {record.eveningFat.toFixed(2)}%
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <span className="text-indigo-700 font-medium">
-                        ₹
-                        {(record.eveningAmount || 0).toLocaleString("en-IN", {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        })}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right font-semibold text-primary">
-                      {(
-                        record.morningQuantity + record.eveningQuantity
-                      ).toFixed(1)}
-                    </TableCell>
-                    <TableCell className="text-right font-semibold text-rose-600">
-                      ₹
-                      {(
-                        (record.morningAmount || 0) +
-                        (record.eveningAmount || 0)
-                      ).toLocaleString("en-IN", {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => openEdit(record)}
-                          data-ocid={`milk.edit_button.${idx + 1}`}
-                          className="h-8 w-8"
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => setDeleteId(record.id)}
-                          data-ocid={`milk.delete_button.${idx + 1}`}
-                          className="h-8 w-8 text-destructive hover:text-destructive"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className="pb-0">
+                    <div className="overflow-x-auto">
+                      <Table data-ocid="milk.table">
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Date</TableHead>
+                            <TableHead className="text-right">
+                              Morning (L)
+                            </TableHead>
+                            <TableHead className="text-right">
+                              Morning Fat %
+                            </TableHead>
+                            <TableHead className="text-right">
+                              Morning Amt (₹)
+                            </TableHead>
+                            <TableHead className="text-right">
+                              Evening (L)
+                            </TableHead>
+                            <TableHead className="text-right">
+                              Evening Fat %
+                            </TableHead>
+                            <TableHead className="text-right">
+                              Evening Amt (₹)
+                            </TableHead>
+                            <TableHead className="text-right">
+                              Total (L)
+                            </TableHead>
+                            <TableHead className="text-right">
+                              Total Amt (₹)
+                            </TableHead>
+                            {isAdmin && (
+                              <TableHead className="text-right">
+                                Actions
+                              </TableHead>
+                            )}
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {groupSorted.map((record, idx) => (
+                            <TableRow
+                              key={record.id.toString()}
+                              data-ocid={`milk.item.${idx + 1}`}
+                              className="hover:bg-muted/40"
+                            >
+                              <TableCell className="font-medium whitespace-nowrap">
+                                {new Date(
+                                  `${record.date}T00:00:00`,
+                                ).toLocaleDateString("en-IN", {
+                                  day: "numeric",
+                                  month: "short",
+                                  year: "numeric",
+                                })}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <span className="text-amber-700 font-medium">
+                                  {record.morningQuantity.toFixed(1)}
+                                </span>
+                              </TableCell>
+                              <TableCell className="text-right">
+                                {record.morningFat.toFixed(2)}%
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <span className="text-amber-700 font-medium">
+                                  ₹
+                                  {(record.morningAmount || 0).toLocaleString(
+                                    "en-IN",
+                                    {
+                                      minimumFractionDigits: 2,
+                                      maximumFractionDigits: 2,
+                                    },
+                                  )}
+                                </span>
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <span className="text-indigo-700 font-medium">
+                                  {record.eveningQuantity.toFixed(1)}
+                                </span>
+                              </TableCell>
+                              <TableCell className="text-right">
+                                {record.eveningFat.toFixed(2)}%
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <span className="text-indigo-700 font-medium">
+                                  ₹
+                                  {(record.eveningAmount || 0).toLocaleString(
+                                    "en-IN",
+                                    {
+                                      minimumFractionDigits: 2,
+                                      maximumFractionDigits: 2,
+                                    },
+                                  )}
+                                </span>
+                              </TableCell>
+                              <TableCell className="text-right font-semibold text-primary">
+                                {(
+                                  record.morningQuantity +
+                                  record.eveningQuantity
+                                ).toFixed(1)}
+                              </TableCell>
+                              <TableCell className="text-right font-semibold text-rose-600">
+                                ₹
+                                {(
+                                  (record.morningAmount || 0) +
+                                  (record.eveningAmount || 0)
+                                ).toLocaleString("en-IN", {
+                                  minimumFractionDigits: 2,
+                                  maximumFractionDigits: 2,
+                                })}
+                              </TableCell>
+                              {isAdmin && (
+                                <TableCell className="text-right">
+                                  <div className="flex items-center justify-end gap-1">
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => openEdit(record)}
+                                      data-ocid={`milk.edit_button.${idx + 1}`}
+                                      className="h-8 w-8"
+                                    >
+                                      <Pencil className="h-3.5 w-3.5" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => setDeleteId(record.id)}
+                                      data-ocid={`milk.delete_button.${idx + 1}`}
+                                      className="h-8 w-8 text-destructive hover:text-destructive"
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              )}
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              );
+            })}
+          </Accordion>
         )}
       </div>
+
+      {/* ── Buyer Advance Payments Section ──────────────────────────────── */}
+      <div className="bg-card rounded-lg border border-violet-200 dark:border-violet-800 shadow-card mt-8">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-violet-200 dark:border-violet-800 bg-violet-50/60 dark:bg-violet-950/20 rounded-t-lg">
+          <div className="flex items-center gap-2">
+            <HandCoins className="h-4 w-4 text-violet-600" />
+            <h2 className="font-display font-semibold text-foreground">
+              Buyer Advance Payments
+            </h2>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => window.print()}
+              data-ocid="buyer_advance.print_button"
+              className="gap-1.5 no-print"
+            >
+              <Printer className="h-4 w-4" />
+              Print
+            </Button>
+            {isAdmin && (
+              <Button
+                size="sm"
+                onClick={openAddBuyerAdvance}
+                data-ocid="buyer_advance.add_button"
+                className="gap-1.5 bg-violet-600 hover:bg-violet-700 text-white"
+              >
+                <Plus className="h-4 w-4" />
+                Add Advance
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {buyerAdvancesLoading ? (
+          <div className="p-4 space-y-3">
+            {[1, 2, 3].map((i) => (
+              <Skeleton key={i} className="h-10 w-full" />
+            ))}
+          </div>
+        ) : sortedBuyerAdvances.length === 0 ? (
+          <div
+            data-ocid="buyer_advance.empty_state"
+            className="flex flex-col items-center justify-center py-14 text-muted-foreground"
+          >
+            <HandCoins className="h-12 w-12 mb-3 text-violet-300" />
+            <p className="font-medium">No buyer advances recorded yet</p>
+            <p className="text-sm mt-1">
+              {isAdmin
+                ? "Record advance payments received from buyers"
+                : "No advances have been recorded yet"}
+            </p>
+            {isAdmin && (
+              <Button
+                onClick={openAddBuyerAdvance}
+                className="mt-4 gap-1.5 bg-violet-600 hover:bg-violet-700 text-white"
+                size="sm"
+              >
+                <Plus className="h-4 w-4" />
+                Add First Advance
+              </Button>
+            )}
+          </div>
+        ) : (
+          <Accordion
+            type="multiple"
+            defaultValue={[curMonthKey]}
+            className="divide-y divide-violet-100"
+          >
+            {advanceMonthGroups.map((group, groupIdx) => {
+              const groupSorted = [...group.items].sort(
+                (a, b) =>
+                  new Date(b.date).getTime() - new Date(a.date).getTime(),
+              );
+              const groupTotal = group.items.reduce((s, a) => s + a.amount, 0);
+              return (
+                <AccordionItem
+                  key={group.monthKey}
+                  value={group.monthKey}
+                  data-ocid={`buyer_advance.month_group.${groupIdx + 1}`}
+                  className="border-0"
+                >
+                  <AccordionTrigger className="px-4 py-3 hover:bg-violet-50/60 hover:no-underline rounded-none [&[data-state=open]]:bg-violet-50/60">
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <FolderOpen className="h-4 w-4 text-violet-600 flex-shrink-0" />
+                      <span className="font-semibold text-foreground">
+                        {group.label}
+                      </span>
+                      <span className="ml-auto mr-3 flex-shrink-0 text-xs bg-violet-100 text-violet-700 border border-violet-200 rounded-full px-2.5 py-0.5 font-medium">
+                        {group.items.length} advance
+                        {group.items.length !== 1 ? "s" : ""} · ₹
+                        {groupTotal.toLocaleString("en-IN", {
+                          maximumFractionDigits: 0,
+                        })}
+                      </span>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className="pb-0">
+                    <div className="overflow-x-auto">
+                      <Table data-ocid="buyer_advance.table">
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Date</TableHead>
+                            <TableHead className="text-right">
+                              Amount (₹)
+                            </TableHead>
+                            <TableHead>Reason</TableHead>
+                            {isAdmin && (
+                              <TableHead className="text-right">
+                                Actions
+                              </TableHead>
+                            )}
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {groupSorted.map((advance, idx) => (
+                            <TableRow
+                              key={advance.id.toString()}
+                              data-ocid={`buyer_advance.item.${idx + 1}`}
+                              className="hover:bg-violet-50/40 dark:hover:bg-violet-950/20"
+                            >
+                              <TableCell className="font-medium whitespace-nowrap">
+                                {new Date(
+                                  `${advance.date}T00:00:00`,
+                                ).toLocaleDateString("en-IN", {
+                                  day: "numeric",
+                                  month: "short",
+                                  year: "numeric",
+                                })}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <span className="text-violet-700 font-semibold">
+                                  ₹
+                                  {advance.amount.toLocaleString("en-IN", {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2,
+                                  })}
+                                </span>
+                              </TableCell>
+                              <TableCell className="text-muted-foreground">
+                                {advance.reason}
+                              </TableCell>
+                              {isAdmin && (
+                                <TableCell className="text-right">
+                                  <div className="flex items-center justify-end gap-1">
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() =>
+                                        openEditBuyerAdvance(advance)
+                                      }
+                                      data-ocid={`buyer_advance.edit_button.${idx + 1}`}
+                                      className="h-8 w-8 text-violet-600 hover:text-violet-700 hover:bg-violet-50"
+                                    >
+                                      <Pencil className="h-3.5 w-3.5" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() =>
+                                        setDeleteBuyerAdvanceId(advance.id)
+                                      }
+                                      data-ocid={`buyer_advance.delete_button.${idx + 1}`}
+                                      className="h-8 w-8 text-destructive hover:text-destructive"
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              )}
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              );
+            })}
+          </Accordion>
+        )}
+      </div>
+
+      {/* Buyer Advance Add/Edit Dialog */}
+      <Dialog
+        open={buyerAdvanceDialogOpen}
+        onOpenChange={setBuyerAdvanceDialogOpen}
+      >
+        <DialogContent
+          data-ocid="buyer_advance.form.dialog"
+          className="sm:max-w-md"
+        >
+          <DialogHeader>
+            <DialogTitle className="font-display flex items-center gap-2">
+              <HandCoins className="h-5 w-5 text-violet-600" />
+              {editingBuyerAdvance
+                ? "Edit Advance Payment"
+                : "Add Buyer Advance Payment"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="rounded-lg border border-violet-200 bg-violet-50/50 dark:bg-violet-950/20 p-4 space-y-4">
+              <div>
+                <Label htmlFor="buyer-advance-date">Date</Label>
+                <Input
+                  id="buyer-advance-date"
+                  type="date"
+                  value={buyerAdvanceForm.date}
+                  onChange={(e) =>
+                    setBuyerAdvanceForm((f) => ({
+                      ...f,
+                      date: e.target.value,
+                    }))
+                  }
+                  className="mt-1"
+                  data-ocid="buyer_advance.form.date.input"
+                />
+              </div>
+              <div>
+                <Label
+                  htmlFor="buyer-advance-amount"
+                  className="flex items-center gap-1"
+                >
+                  <IndianRupee className="h-3 w-3" /> Amount (₹)
+                </Label>
+                <Input
+                  id="buyer-advance-amount"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={buyerAdvanceForm.amount}
+                  onChange={(e) =>
+                    setBuyerAdvanceForm((f) => ({
+                      ...f,
+                      amount: e.target.value,
+                    }))
+                  }
+                  placeholder="0.00"
+                  className="mt-1"
+                  data-ocid="buyer_advance.form.amount.input"
+                />
+              </div>
+              <div>
+                <Label htmlFor="buyer-advance-reason">Reason</Label>
+                <Input
+                  id="buyer-advance-reason"
+                  type="text"
+                  value={buyerAdvanceForm.reason}
+                  onChange={(e) =>
+                    setBuyerAdvanceForm((f) => ({
+                      ...f,
+                      reason: e.target.value,
+                    }))
+                  }
+                  placeholder="e.g. Festival advance, Partial payment"
+                  className="mt-1"
+                  data-ocid="buyer_advance.form.reason.input"
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setBuyerAdvanceDialogOpen(false)}
+              data-ocid="buyer_advance.form.cancel_button"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleBuyerAdvanceSubmit}
+              disabled={isBuyerAdvancePending}
+              data-ocid="buyer_advance.form.submit_button"
+              className="bg-violet-600 hover:bg-violet-700 text-white"
+            >
+              {isBuyerAdvancePending && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              {editingBuyerAdvance ? "Save Changes" : "Record Advance"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Buyer Advance Delete Confirmation */}
+      <AlertDialog
+        open={!!deleteBuyerAdvanceId}
+        onOpenChange={(open) => {
+          if (!open) setDeleteBuyerAdvanceId(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Advance Payment?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. The advance payment record will be
+              permanently removed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              type="button"
+              onClick={handleDeleteBuyerAdvance}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Add/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -423,20 +1001,36 @@ export function MilkRecordsPage() {
                     step="0.1"
                     min="0"
                     value={form.morningQuantity}
-                    onChange={(e) =>
-                      setForm((f) => ({
-                        ...f,
-                        morningQuantity: e.target.value,
-                      }))
-                    }
+                    onChange={(e) => {
+                      const qty = e.target.value;
+                      setForm((f) => {
+                        const fat = Number.parseFloat(f.morningFat);
+                        const q = Number.parseFloat(qty);
+                        const autoAmt =
+                          !Number.isNaN(q) && !Number.isNaN(fat)
+                            ? (q * fat * FAT_RATE).toFixed(2)
+                            : f.morningAmount;
+                        return {
+                          ...f,
+                          morningQuantity: qty,
+                          morningAmount: autoAmt,
+                        };
+                      });
+                    }}
                     placeholder="0.0"
                     className="mt-1"
                     data-ocid="milk.form.morning_qty.input"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="morning-fat" className="text-xs">
+                  <Label
+                    htmlFor="morning-fat"
+                    className="text-xs flex items-center gap-1"
+                  >
                     Fat %
+                    <span className="text-amber-600 font-semibold bg-amber-100 px-1 rounded text-[10px]">
+                      ₹9/fat
+                    </span>
                   </Label>
                   <Input
                     id="morning-fat"
@@ -445,9 +1039,22 @@ export function MilkRecordsPage() {
                     min="0"
                     max="10"
                     value={form.morningFat}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, morningFat: e.target.value }))
-                    }
+                    onChange={(e) => {
+                      const fat = e.target.value;
+                      setForm((f) => {
+                        const q = Number.parseFloat(f.morningQuantity);
+                        const ft = Number.parseFloat(fat);
+                        const autoAmt =
+                          !Number.isNaN(q) && !Number.isNaN(ft)
+                            ? (q * ft * FAT_RATE).toFixed(2)
+                            : f.morningAmount;
+                        return {
+                          ...f,
+                          morningFat: fat,
+                          morningAmount: autoAmt,
+                        };
+                      });
+                    }}
                     placeholder="0.00"
                     className="mt-1"
                     data-ocid="milk.form.morning_fat.input"
@@ -459,6 +1066,9 @@ export function MilkRecordsPage() {
                     className="flex items-center gap-1 text-xs"
                   >
                     <IndianRupee className="h-3 w-3" /> Amount
+                    <span className="text-muted-foreground font-normal">
+                      (auto)
+                    </span>
                   </Label>
                   <Input
                     id="morning-amount"
@@ -494,20 +1104,36 @@ export function MilkRecordsPage() {
                     step="0.1"
                     min="0"
                     value={form.eveningQuantity}
-                    onChange={(e) =>
-                      setForm((f) => ({
-                        ...f,
-                        eveningQuantity: e.target.value,
-                      }))
-                    }
+                    onChange={(e) => {
+                      const qty = e.target.value;
+                      setForm((f) => {
+                        const fat = Number.parseFloat(f.eveningFat);
+                        const q = Number.parseFloat(qty);
+                        const autoAmt =
+                          !Number.isNaN(q) && !Number.isNaN(fat)
+                            ? (q * fat * FAT_RATE).toFixed(2)
+                            : f.eveningAmount;
+                        return {
+                          ...f,
+                          eveningQuantity: qty,
+                          eveningAmount: autoAmt,
+                        };
+                      });
+                    }}
                     placeholder="0.0"
                     className="mt-1"
                     data-ocid="milk.form.evening_qty.input"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="evening-fat" className="text-xs">
+                  <Label
+                    htmlFor="evening-fat"
+                    className="text-xs flex items-center gap-1"
+                  >
                     Fat %
+                    <span className="text-indigo-600 font-semibold bg-indigo-100 px-1 rounded text-[10px]">
+                      ₹9/fat
+                    </span>
                   </Label>
                   <Input
                     id="evening-fat"
@@ -516,9 +1142,22 @@ export function MilkRecordsPage() {
                     min="0"
                     max="10"
                     value={form.eveningFat}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, eveningFat: e.target.value }))
-                    }
+                    onChange={(e) => {
+                      const fat = e.target.value;
+                      setForm((f) => {
+                        const q = Number.parseFloat(f.eveningQuantity);
+                        const ft = Number.parseFloat(fat);
+                        const autoAmt =
+                          !Number.isNaN(q) && !Number.isNaN(ft)
+                            ? (q * ft * FAT_RATE).toFixed(2)
+                            : f.eveningAmount;
+                        return {
+                          ...f,
+                          eveningFat: fat,
+                          eveningAmount: autoAmt,
+                        };
+                      });
+                    }}
                     placeholder="0.00"
                     className="mt-1"
                     data-ocid="milk.form.evening_fat.input"
@@ -530,6 +1169,9 @@ export function MilkRecordsPage() {
                     className="flex items-center gap-1 text-xs"
                   >
                     <IndianRupee className="h-3 w-3" /> Amount
+                    <span className="text-muted-foreground font-normal">
+                      (auto)
+                    </span>
                   </Label>
                   <Input
                     id="evening-amount"
@@ -569,7 +1211,12 @@ export function MilkRecordsPage() {
       </Dialog>
 
       {/* Delete Confirmation */}
-      <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
+      <AlertDialog
+        open={!!deleteId}
+        onOpenChange={(open) => {
+          if (!open) setDeleteId(null);
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Milk Record?</AlertDialogTitle>
@@ -581,12 +1228,10 @@ export function MilkRecordsPage() {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
+              type="button"
               onClick={handleDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {deleteMutation.isPending ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : null}
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>

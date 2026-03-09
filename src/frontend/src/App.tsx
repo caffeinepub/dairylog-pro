@@ -1,14 +1,23 @@
 import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/sonner";
-import { Droplets, Loader2, LogIn, LogOut, Receipt, Users } from "lucide-react";
+import {
+  Beef,
+  Droplets,
+  Loader2,
+  LogIn,
+  LogOut,
+  Receipt,
+  Users,
+} from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
+import { AnimalsPage } from "./components/AnimalsPage";
 import { ExpensesPage } from "./components/ExpensesPage";
 import { MilkRecordsPage } from "./components/MilkRecordsPage";
 import { StaffPage } from "./components/StaffPage";
 import { useInternetIdentity } from "./hooks/useInternetIdentity";
 
-type Page = "milk" | "expenses" | "staff";
+type Page = "milk" | "expenses" | "staff" | "animals";
 
 const navItems: {
   id: Page;
@@ -29,6 +38,7 @@ const navItems: {
     ocid: "nav.expenses.tab",
   },
   { id: "staff", label: "Staff", icon: Users, ocid: "nav.staff.tab" },
+  { id: "animals", label: "Animals", icon: Beef, ocid: "nav.animals.tab" },
 ];
 
 export default function App() {
@@ -37,6 +47,8 @@ export default function App() {
     useInternetIdentity();
 
   const isLoggedIn = !!identity;
+  // Any logged-in user is the owner and gets full edit access
+  const isAdmin = isLoggedIn;
   const isLoggingIn = loginStatus === "logging-in";
 
   const currentYear = new Date().getFullYear();
@@ -81,10 +93,10 @@ export default function App() {
               </div>
             </div>
             <h1 className="text-3xl font-bold text-foreground mb-2">
-              DairyLog Pro
+              Shree Hari Dairy
             </h1>
             <p className="text-muted-foreground mb-2 text-sm leading-relaxed">
-              Your complete dairy farm management solution
+              Shree Hari Dairy — Daily Records
             </p>
             <p className="text-xs text-muted-foreground mb-8">
               Track milk production, expenses, and staff all in one place.
@@ -148,7 +160,7 @@ export default function App() {
                 <Droplets className="h-4 w-4 text-white" />
               </div>
               <span className="font-bold text-gray-800 text-base">
-                DairyLog Pro
+                Shree Hari Dairy
               </span>
             </div>
 
@@ -202,9 +214,10 @@ export default function App() {
             exit={{ opacity: 0, y: -6 }}
             transition={{ duration: 0.15 }}
           >
-            {page === "milk" && <MilkRecordsPage />}
-            {page === "expenses" && <ExpensesPage />}
-            {page === "staff" && <StaffPage />}
+            {page === "milk" && <MilkRecordsPage isAdmin={isAdmin} />}
+            {page === "expenses" && <ExpensesPage isAdmin={isAdmin} />}
+            {page === "staff" && <StaffPage isAdmin={isAdmin} />}
+            {page === "animals" && <AnimalsPage isAdmin={isAdmin} />}
           </motion.div>
         </AnimatePresence>
       </main>
@@ -224,7 +237,7 @@ export default function App() {
             </a>
           </p>
           <p className="text-xs text-gray-400">
-            DairyLog Pro — Farm Management
+            Shree Hari Dairy — Dairy Management
           </p>
         </div>
       </footer>
