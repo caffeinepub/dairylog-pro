@@ -277,7 +277,7 @@ export function ExpensesPage({ isAdmin = false }: { isAdmin?: boolean }) {
   return (
     <div className="animate-fade-in">
       {/* Fun Photo Strip */}
-      <div className="flex gap-3 mb-6 overflow-x-auto pb-1">
+      <div className="flex gap-3 mb-6 overflow-x-auto pb-1 no-print">
         {[
           {
             src: "/assets/generated/farm-expenses.dim_800x600.jpg",
@@ -302,7 +302,7 @@ export function ExpensesPage({ isAdmin = false }: { isAdmin?: boolean }) {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6 no-print">
         {summaryCards.map((card, i) => (
           <motion.div
             key={card.label}

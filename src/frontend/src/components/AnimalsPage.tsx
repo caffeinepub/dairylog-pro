@@ -195,7 +195,7 @@ export function AnimalsPage({ isAdmin = false }: { isAdmin?: boolean }) {
   return (
     <div className="animate-fade-in">
       {/* Summary Cards */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-3 gap-4 mb-6 no-print">
         {summaryCards.map((card, i) => (
           <motion.div
             key={card.label}

@@ -141,8 +141,12 @@
   /* Hide non-printable UI */
   header,
   footer,
+  nav,
   .no-print,
-  button:not(.print-show),
+  button,
+  input,
+  textarea,
+  select,
   [data-ocid*="add_button"],
   [data-ocid*="edit_button"],
   [data-ocid*="delete_button"],
@@ -150,8 +154,7 @@
   [data-ocid*="advances_button"],
   [data-ocid*="upload_button"],
   [data-ocid*="filter"],
-  [data-ocid*="form"],
-  nav {
+  [data-ocid*="form"] {
     display: none !important;
   }
 
@@ -187,15 +190,19 @@
     margin-top: 2pt;
   }
 
-  /* Summary cards */
-  .grid {
-    display: flex !important;
-    flex-wrap: wrap !important;
-    gap: 6pt !important;
+  /* Force accordion content open regardless of state */
+  [data-slot="accordion-content"],
+  [data-radix-accordion-content],
+  [data-state="closed"][data-slot="accordion-content"],
+  [data-state="closed"][data-radix-accordion-content] {
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+    animation: none !important;
   }
 
-  /* Photo strips hidden */
-  .overflow-x-auto:has(img) {
+  /* Hide accordion triggers (month headers) but show content */
+  [data-slot="accordion-trigger"], [data-radix-accordion-trigger] {
     display: none !important;
   }
 
@@ -226,7 +233,7 @@
 
   /* Cards */
   .rounded-lg {
-    border: 0.5pt solid #ddd !important;
+    border: none !important;
     box-shadow: none !important;
     break-inside: avoid;
   }
@@ -235,11 +242,6 @@
   .bg-amber-50, .bg-indigo-50, .bg-green-50, .bg-rose-50,
   .bg-emerald-50, .bg-violet-50, .bg-card {
     background: white !important;
-  }
-
-  /* Hide photo strips */
-  [class*="photo"], .overflow-x-auto:first-child {
-    display: none !important;
   }
 
   a::after {

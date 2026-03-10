@@ -249,6 +249,18 @@ export default function App() {
 
       {/* Main Content */}
       <main className="flex-1 max-w-5xl w-full mx-auto px-4 py-5 pb-10">
+        {/* Print Header - only visible when printing */}
+        <div className="print-header" style={{ display: "none" }}>
+          <h1>Shree Hari Dairy</h1>
+          <p>
+            {new Date().toLocaleDateString("en-IN", {
+              weekday: "long",
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+            })}
+          </p>
+        </div>
         <AnimatePresence mode="wait">
           <motion.div
             key={page}
