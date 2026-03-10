@@ -1,11 +1,12 @@
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Toaster } from "@/components/ui/sonner";
 import {
   Beef,
   Droplets,
-  Loader2,
-  LogIn,
-  LogOut,
+  Eye,
+  EyeOff,
+  Lock,
   Receipt,
   Users,
 } from "lucide-react";
@@ -15,9 +16,11 @@ import { AnimalsPage } from "./components/AnimalsPage";
 import { ExpensesPage } from "./components/ExpensesPage";
 import { MilkRecordsPage } from "./components/MilkRecordsPage";
 import { StaffPage } from "./components/StaffPage";
-import { useInternetIdentity } from "./hooks/useInternetIdentity";
 
 type Page = "milk" | "expenses" | "staff" | "animals";
+
+const APP_PASSWORD = "Dairy@123";
+const SESSION_KEY = "shd_unlocked";
 
 const navItems: {
   id: Page;
@@ -43,29 +46,37 @@ const navItems: {
 
 export default function App() {
   const [page, setPage] = useState<Page>("milk");
-  const { login, clear, loginStatus, identity, isInitializing } =
-    useInternetIdentity();
+  const [unlocked, setUnlocked] = useState<boolean>(
+    () => sessionStorage.getItem(SESSION_KEY) === "1",
+  );
+  const [passwordInput, setPasswordInput] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState("");
 
-  const isLoggedIn = !!identity;
-  // Any logged-in user is the owner and gets full edit access
-  const isAdmin = isLoggedIn;
-  const isLoggingIn = loginStatus === "logging-in";
-
+  const isAdmin = true;
   const currentYear = new Date().getFullYear();
   const hostname = window.location.hostname;
 
-  if (isInitializing) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3 text-muted-foreground">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-sm font-medium">Loading farm records...</p>
-        </div>
-      </div>
-    );
+  function handleUnlock(e: React.FormEvent) {
+    e.preventDefault();
+    if (passwordInput === APP_PASSWORD) {
+      sessionStorage.setItem(SESSION_KEY, "1");
+      setUnlocked(true);
+      setError("");
+    } else {
+      setError("Wrong password. Please try again.");
+      setPasswordInput("");
+    }
   }
 
-  if (!isLoggedIn) {
+  function handleLock() {
+    sessionStorage.removeItem(SESSION_KEY);
+    setUnlocked(false);
+    setPasswordInput("");
+    setError("");
+  }
+
+  if (!unlocked) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
         <Toaster richColors position="top-right" />
@@ -88,43 +99,76 @@ export default function App() {
             className="relative z-10 text-center max-w-sm w-full"
           >
             <div className="flex items-center justify-center gap-3 mb-6">
-              <div className="h-14 w-14 rounded-2xl bg-primary flex items-center justify-center shadow-lg">
-                <Droplets className="h-7 w-7 text-primary-foreground" />
+              <div className="h-14 w-14 rounded-2xl bg-green-600 flex items-center justify-center shadow-lg">
+                <Droplets className="h-7 w-7 text-white" />
               </div>
             </div>
             <h1 className="text-3xl font-bold text-foreground mb-2">
               Shree Hari Dairy
             </h1>
-            <p className="text-muted-foreground mb-2 text-sm leading-relaxed">
-              Shree Hari Dairy — Daily Records
-            </p>
             <p className="text-xs text-muted-foreground mb-8">
               Track milk production, expenses, and staff all in one place.
             </p>
 
             <div className="bg-card border border-border rounded-xl p-6 shadow-lg">
+              <div className="flex items-center justify-center mb-4">
+                <div className="h-10 w-10 rounded-full bg-green-50 flex items-center justify-center">
+                  <Lock className="h-5 w-5 text-green-600" />
+                </div>
+              </div>
               <h2 className="font-semibold text-foreground mb-1">
-                Welcome Back
+                Enter Password
               </h2>
               <p className="text-sm text-muted-foreground mb-5">
-                Sign in to access your farm records
+                Enter the password to access your farm records
               </p>
-              <Button
-                onClick={login}
-                disabled={isLoggingIn}
-                className="w-full gap-2 h-11"
-                size="lg"
-              >
-                {isLoggingIn ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <LogIn className="h-4 w-4" />
+
+              <form onSubmit={handleUnlock} className="space-y-3">
+                <div className="relative">
+                  <Input
+                    data-ocid="login.password.input"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Password"
+                    value={passwordInput}
+                    onChange={(e) => {
+                      setPasswordInput(e.target.value);
+                      setError("");
+                    }}
+                    className="pr-10 h-11"
+                    autoFocus
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    tabIndex={-1}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
+
+                {error && (
+                  <p
+                    data-ocid="login.error_state"
+                    className="text-sm text-red-500 text-left"
+                  >
+                    {error}
+                  </p>
                 )}
-                {isLoggingIn ? "Signing in..." : "Sign In"}
-              </Button>
-              <p className="text-xs text-muted-foreground mt-3">
-                Secure authentication via Internet Identity
-              </p>
+
+                <Button
+                  data-ocid="login.submit_button"
+                  type="submit"
+                  className="w-full h-11 bg-green-600 hover:bg-green-700 text-white"
+                  size="lg"
+                >
+                  Open Farm Records
+                </Button>
+              </form>
             </div>
           </motion.div>
         </div>
@@ -154,7 +198,6 @@ export default function App() {
       <header className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
         <div className="max-w-5xl mx-auto px-4">
           <div className="flex items-center h-14 gap-3">
-            {/* Logo */}
             <div className="flex items-center gap-2 flex-shrink-0">
               <div className="h-8 w-8 rounded-lg bg-green-600 flex items-center justify-center">
                 <Droplets className="h-4 w-4 text-white" />
@@ -166,20 +209,20 @@ export default function App() {
 
             <div className="flex-1" />
 
-            {/* Sign Out */}
             <Button
+              data-ocid="header.lock_button"
               variant="outline"
               size="sm"
-              onClick={clear}
+              onClick={handleLock}
               className="gap-1.5 h-8 text-gray-600 border-gray-300"
             >
-              <LogOut className="h-3.5 w-3.5" />
-              <span>Sign Out</span>
+              <Lock className="h-3.5 w-3.5" />
+              <span>Lock</span>
             </Button>
           </div>
         </div>
 
-        {/* Tab Navigation — always visible on all screen sizes */}
+        {/* Tab Navigation */}
         <div className="border-t border-gray-200 bg-white">
           <div className="max-w-5xl mx-auto px-4">
             <div className="flex">

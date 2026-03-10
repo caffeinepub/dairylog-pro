@@ -4,15 +4,13 @@ import Array "mo:core/Array";
 import Iter "mo:core/Iter";
 import Principal "mo:core/Principal";
 import Runtime "mo:core/Runtime";
-import MixinAuthorization "authorization/MixinAuthorization";
 import AccessControl "authorization/access-control";
 
-
-
 actor {
-  // Initialize the access control state
+
+  // Retained for upgrade compatibility: previous version stored accessControlState as stable.
+  // We keep it here so Motoko does not reject the upgrade due to a missing stable variable.
   let accessControlState = AccessControl.initState();
-  include MixinAuthorization(accessControlState);
 
   // User profile type and storage
   public type UserProfile = {
@@ -22,19 +20,14 @@ actor {
   let userProfiles = Map.empty<Principal, UserProfile>();
 
   public query ({ caller }) func getCallerUserProfile() : async ?UserProfile {
-    authCheck(caller, "Unauthorized: Must be authenticated");
     userProfiles.get(caller);
   };
 
   public query ({ caller }) func getUserProfile(user : Principal) : async ?UserProfile {
-    if (caller != user and not AccessControl.isAdmin(accessControlState, caller)) {
-      Runtime.trap("Unauthorized: Can only view your own profile");
-    };
     userProfiles.get(user);
   };
 
   public shared ({ caller }) func saveCallerUserProfile(profile : UserProfile) : async () {
-    authCheck(caller, "Unauthorized: Must be authenticated");
     userProfiles.add(caller, profile);
   };
 
@@ -108,15 +101,6 @@ actor {
   let animals = Map.empty<Nat, Animal>();
   var nextAnimalId = 0;
 
-  //---------------------------------------------------------------------------
-  // Helper function for authentication check (non-anonymous)
-  //---------------------------------------------------------------------------
-  func authCheck(principal : Principal, errorMsg : Text) : () {
-    if (principal.isAnonymous()) {
-      Runtime.trap(errorMsg);
-    };
-  };
-
   func findMilkRecord(id : Nat) : MilkRecord {
     switch (milkRecords.get(id)) {
       case (null) { Runtime.trap("Milk record not found") };
@@ -160,9 +144,9 @@ actor {
   };
 
   //---------------------------------------------------------------------------
-  // MilkRecord operations - require non-anonymous access
+  // MilkRecord operations
   //---------------------------------------------------------------------------
-  public shared ({ caller }) func addMilkRecord(
+  public shared func addMilkRecord(
     date : Text,
     morningQuantity : Float,
     morningFat : Float,
@@ -171,8 +155,6 @@ actor {
     eveningFat : Float,
     eveningAmount : Float,
   ) : async Nat {
-    authCheck(caller, "Unauthorized: Must be authenticated");
-
     let id = nextMilkRecordId;
     nextMilkRecordId += 1;
 
@@ -191,7 +173,7 @@ actor {
     id;
   };
 
-  public shared ({ caller }) func updateMilkRecord(
+  public shared func updateMilkRecord(
     id : Nat,
     date : Text,
     morningQuantity : Float,
@@ -201,7 +183,6 @@ actor {
     eveningFat : Float,
     eveningAmount : Float,
   ) : async () {
-    authCheck(caller, "Unauthorized: Must be authenticated");
     let _ = findMilkRecord(id);
 
     let updatedRecord : MilkRecord = {
@@ -217,30 +198,25 @@ actor {
     milkRecords.add(id, updatedRecord);
   };
 
-  public shared ({ caller }) func deleteMilkRecord(id : Nat) : async () {
-    authCheck(caller, "Unauthorized: Must be authenticated");
+  public shared func deleteMilkRecord(id : Nat) : async () {
     let _ = findMilkRecord(id);
-
     milkRecords.remove(id);
   };
 
-  public query ({ caller }) func getMilkRecords() : async [MilkRecord] {
-    authCheck(caller, "Unauthorized: Must be authenticated");
+  public query func getMilkRecords() : async [MilkRecord] {
     milkRecords.values().toArray();
   };
 
   //---------------------------------------------------------------------------
-  // Expense operations - require non-anonymous access
+  // Expense operations
   //---------------------------------------------------------------------------
-  public shared ({ caller }) func addExpense(
+  public shared func addExpense(
     date : Text,
     description : Text,
     amount : Float,
     category : Text,
     status : Text,
   ) : async Nat {
-    authCheck(caller, "Unauthorized: Must be authenticated");
-
     let id = nextExpenseId;
     nextExpenseId += 1;
 
@@ -257,7 +233,7 @@ actor {
     id;
   };
 
-  public shared ({ caller }) func updateExpense(
+  public shared func updateExpense(
     id : Nat,
     date : Text,
     description : Text,
@@ -265,7 +241,6 @@ actor {
     category : Text,
     status : Text,
   ) : async () {
-    authCheck(caller, "Unauthorized: Must be authenticated");
     let _ = findExpense(id);
 
     let updatedExpense : Expense = {
@@ -279,20 +254,16 @@ actor {
     expenses.add(id, updatedExpense);
   };
 
-  public shared ({ caller }) func deleteExpense(id : Nat) : async () {
-    authCheck(caller, "Unauthorized: Must be authenticated");
+  public shared func deleteExpense(id : Nat) : async () {
     let _ = findExpense(id);
-
     expenses.remove(id);
   };
 
-  public query ({ caller }) func getExpenses() : async [Expense] {
-    authCheck(caller, "Unauthorized: Must be authenticated");
+  public query func getExpenses() : async [Expense] {
     expenses.values().toArray();
   };
 
-  public shared ({ caller }) func markExpensePaid(id : Nat) : async () {
-    authCheck(caller, "Unauthorized: Must be authenticated");
+  public shared func markExpensePaid(id : Nat) : async () {
     let expense = findExpense(id);
 
     let updatedExpense : Expense = {
@@ -307,11 +278,9 @@ actor {
   };
 
   //---------------------------------------------------------------------------
-  // StaffMember operations - require non-anonymous access
+  // StaffMember operations
   //---------------------------------------------------------------------------
-  public shared ({ caller }) func addStaffMember(name : Text, role : Text, monthlySalary : Float) : async Nat {
-    authCheck(caller, "Unauthorized: Must be authenticated");
-
+  public shared func addStaffMember(name : Text, role : Text, monthlySalary : Float) : async Nat {
     let id = nextStaffMemberId;
     nextStaffMemberId += 1;
 
@@ -327,8 +296,7 @@ actor {
     id;
   };
 
-  public shared ({ caller }) func updateStaffMember(id : Nat, name : Text, role : Text, monthlySalary : Float) : async () {
-    authCheck(caller, "Unauthorized: Must be authenticated");
+  public shared func updateStaffMember(id : Nat, name : Text, role : Text, monthlySalary : Float) : async () {
     let staff = findStaffMember(id);
 
     let updatedStaff : StaffMember = {
@@ -341,23 +309,19 @@ actor {
     staffMembers.add(id, updatedStaff);
   };
 
-  public shared ({ caller }) func deleteStaffMember(id : Nat) : async () {
-    authCheck(caller, "Unauthorized: Must be authenticated");
+  public shared func deleteStaffMember(id : Nat) : async () {
     let _ = findStaffMember(id);
-
     staffMembers.remove(id);
   };
 
-  public query ({ caller }) func getStaffMembers() : async [StaffMember] {
-    authCheck(caller, "Unauthorized: Must be authenticated");
+  public query func getStaffMembers() : async [StaffMember] {
     staffMembers.values().toArray();
   };
 
   //---------------------------------------------------------------------------
-  // AdvancePayment operations - require non-anonymous access
+  // AdvancePayment operations
   //---------------------------------------------------------------------------
-  public shared ({ caller }) func addAdvancePayment(staffId : Nat, date : Text, amount : Float, note : Text) : async Nat {
-    authCheck(caller, "Unauthorized: Must be authenticated");
+  public shared func addAdvancePayment(staffId : Nat, date : Text, amount : Float, note : Text) : async Nat {
     let _ = findStaffMember(staffId);
 
     let id = nextAdvancePaymentId;
@@ -372,26 +336,18 @@ actor {
     };
 
     advancePayments.add(id, advancePayment);
-
-    // Update totalAdvancePaid on StaffMember
     updateTotalAdvancePaid(staffId);
-
     id;
   };
 
-  public shared ({ caller }) func deleteAdvancePayment(id : Nat) : async () {
-    authCheck(caller, "Unauthorized: Must be authenticated");
+  public shared func deleteAdvancePayment(id : Nat) : async () {
     let payment = findAdvancePayment(id);
     let staffId = payment.staffId;
-
     advancePayments.remove(id);
-
-    // Update totalAdvancePaid on StaffMember
     updateTotalAdvancePaid(staffId);
   };
 
-  public query ({ caller }) func getAdvancePayments() : async [AdvancePayment] {
-    authCheck(caller, "Unauthorized: Must be authenticated");
+  public query func getAdvancePayments() : async [AdvancePayment] {
     advancePayments.values().toArray();
   };
 
@@ -400,14 +356,12 @@ actor {
     let staffTotalAdvance = payments.foldLeft(
       0.0,
       func(acc, p) {
-        if (p.staffId == staffId) { acc + p.amount } else {
-          acc;
-        };
+        if (p.staffId == staffId) { acc + p.amount } else { acc };
       },
     );
 
     switch (staffMembers.get(staffId)) {
-      case (null) { () }; // Do nothing if staff member not found
+      case (null) { () };
       case (?staff) {
         let updatedStaff : StaffMember = {
           id = staff.id;
@@ -422,11 +376,9 @@ actor {
   };
 
   //---------------------------------------------------------------------------
-  // BuyerAdvancePayment operations - require non-anonymous access
+  // BuyerAdvancePayment operations
   //---------------------------------------------------------------------------
-  public shared ({ caller }) func addBuyerAdvancePayment(date : Text, amount : Float, reason : Text) : async Nat {
-    authCheck(caller, "Unauthorized: Must be authenticated");
-
+  public shared func addBuyerAdvancePayment(date : Text, amount : Float, reason : Text) : async Nat {
     let id = nextBuyerAdvancePaymentId;
     nextBuyerAdvancePaymentId += 1;
 
@@ -441,8 +393,7 @@ actor {
     id;
   };
 
-  public shared ({ caller }) func updateBuyerAdvancePayment(id : Nat, date : Text, amount : Float, reason : Text) : async () {
-    authCheck(caller, "Unauthorized: Must be authenticated");
+  public shared func updateBuyerAdvancePayment(id : Nat, date : Text, amount : Float, reason : Text) : async () {
     let _ = findBuyerAdvancePayment(id);
 
     let updatedPayment : BuyerAdvancePayment = {
@@ -454,30 +405,25 @@ actor {
     buyerAdvancePayments.add(id, updatedPayment);
   };
 
-  public shared ({ caller }) func deleteBuyerAdvancePayment(id : Nat) : async () {
-    authCheck(caller, "Unauthorized: Must be authenticated");
+  public shared func deleteBuyerAdvancePayment(id : Nat) : async () {
     let _ = findBuyerAdvancePayment(id);
-
     buyerAdvancePayments.remove(id);
   };
 
-  public query ({ caller }) func getBuyerAdvancePayments() : async [BuyerAdvancePayment] {
-    authCheck(caller, "Unauthorized: Must be authenticated");
+  public query func getBuyerAdvancePayments() : async [BuyerAdvancePayment] {
     buyerAdvancePayments.values().toArray();
   };
 
   //---------------------------------------------------------------------------
-  // Animal operations - require non-anonymous access
+  // Animal operations
   //---------------------------------------------------------------------------
-  public shared ({ caller }) func addAnimal(
+  public shared func addAnimal(
     serialNumber : Text,
     animalType : Text,
     name : Text,
     semenDate : Text,
     notes : Text,
   ) : async Nat {
-    authCheck(caller, "Unauthorized: Must be authenticated");
-
     let id = nextAnimalId;
     nextAnimalId += 1;
 
@@ -494,7 +440,7 @@ actor {
     id;
   };
 
-  public shared ({ caller }) func updateAnimal(
+  public shared func updateAnimal(
     id : Nat,
     serialNumber : Text,
     animalType : Text,
@@ -502,7 +448,6 @@ actor {
     semenDate : Text,
     notes : Text,
   ) : async () {
-    authCheck(caller, "Unauthorized: Must be authenticated");
     let _ = findAnimal(id);
 
     let updatedAnimal : Animal = {
@@ -516,16 +461,12 @@ actor {
     animals.add(id, updatedAnimal);
   };
 
-  public shared ({ caller }) func deleteAnimal(id : Nat) : async () {
-    authCheck(caller, "Unauthorized: Must be authenticated");
+  public shared func deleteAnimal(id : Nat) : async () {
     let _ = findAnimal(id);
-
     animals.remove(id);
   };
 
-  public query ({ caller }) func getAnimals() : async [Animal] {
-    authCheck(caller, "Unauthorized: Must be authenticated");
+  public query func getAnimals() : async [Animal] {
     animals.values().toArray();
   };
 };
-
