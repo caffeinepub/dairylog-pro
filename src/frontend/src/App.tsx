@@ -6,6 +6,7 @@ import {
   Droplets,
   Eye,
   EyeOff,
+  IndianRupee,
   Lock,
   Receipt,
   Users,
@@ -13,11 +14,12 @@ import {
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import { AnimalsPage } from "./components/AnimalsPage";
+import { BuyerPaymentsPage } from "./components/BuyerPaymentsPage";
 import { ExpensesPage } from "./components/ExpensesPage";
 import { MilkRecordsPage } from "./components/MilkRecordsPage";
 import { StaffPage } from "./components/StaffPage";
 
-type Page = "milk" | "expenses" | "staff" | "animals";
+type Page = "milk" | "expenses" | "staff" | "animals" | "payments";
 
 const APP_PASSWORD = "Dairy@123";
 const SESSION_KEY = "shd_unlocked";
@@ -42,6 +44,12 @@ const navItems: {
   },
   { id: "staff", label: "Staff", icon: Users, ocid: "nav.staff.tab" },
   { id: "animals", label: "Animals", icon: Beef, ocid: "nav.animals.tab" },
+  {
+    id: "payments",
+    label: "Buyer Payments",
+    icon: IndianRupee,
+    ocid: "nav.buyer_payments.tab",
+  },
 ];
 
 export default function App() {
@@ -224,15 +232,15 @@ export default function App() {
 
         {/* Tab Navigation */}
         <div className="border-t border-gray-200 bg-white">
-          <div className="max-w-5xl mx-auto px-4">
-            <div className="flex">
+          <div className="max-w-5xl mx-auto px-4 overflow-x-auto">
+            <div className="flex min-w-max">
               {navItems.map((item) => (
                 <button
                   type="button"
                   key={item.id}
                   onClick={() => setPage(item.id)}
                   data-ocid={item.ocid}
-                  className={`flex items-center justify-center gap-2 px-5 py-3 text-sm font-semibold border-b-2 transition-colors flex-1 sm:flex-none ${
+                  className={`flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
                     page === item.id
                       ? "border-green-600 text-green-700 bg-green-50"
                       : "border-transparent text-gray-500 hover:text-gray-800 hover:bg-gray-50"
@@ -273,6 +281,7 @@ export default function App() {
             {page === "expenses" && <ExpensesPage isAdmin={isAdmin} />}
             {page === "staff" && <StaffPage isAdmin={isAdmin} />}
             {page === "animals" && <AnimalsPage isAdmin={isAdmin} />}
+            {page === "payments" && <BuyerPaymentsPage isAdmin={isAdmin} />}
           </motion.div>
         </AnimatePresence>
       </main>
