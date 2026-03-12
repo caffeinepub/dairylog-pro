@@ -6,6 +6,7 @@ import {
   Droplets,
   Eye,
   EyeOff,
+  HandCoins,
   IndianRupee,
   Lock,
   Receipt,
@@ -14,12 +15,13 @@ import {
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import { AnimalsPage } from "./components/AnimalsPage";
+import { BuyerAdvancesPage } from "./components/BuyerAdvancesPage";
 import { BuyerPaymentsPage } from "./components/BuyerPaymentsPage";
 import { ExpensesPage } from "./components/ExpensesPage";
 import { MilkRecordsPage } from "./components/MilkRecordsPage";
 import { StaffPage } from "./components/StaffPage";
 
-type Page = "milk" | "expenses" | "staff" | "animals" | "payments";
+type Page = "milk" | "expenses" | "staff" | "animals" | "advances" | "payments";
 
 const APP_PASSWORD = "Dairy@123";
 const SESSION_KEY = "shd_unlocked";
@@ -44,6 +46,12 @@ const navItems: {
   },
   { id: "staff", label: "Staff", icon: Users, ocid: "nav.staff.tab" },
   { id: "animals", label: "Animals", icon: Beef, ocid: "nav.animals.tab" },
+  {
+    id: "advances",
+    label: "Buyer Advances",
+    icon: HandCoins,
+    ocid: "nav.buyer_advances.tab",
+  },
   {
     id: "payments",
     label: "Buyer Payments",
@@ -281,6 +289,7 @@ export default function App() {
             {page === "expenses" && <ExpensesPage isAdmin={isAdmin} />}
             {page === "staff" && <StaffPage isAdmin={isAdmin} />}
             {page === "animals" && <AnimalsPage isAdmin={isAdmin} />}
+            {page === "advances" && <BuyerAdvancesPage isAdmin={isAdmin} />}
             {page === "payments" && <BuyerPaymentsPage isAdmin={isAdmin} />}
           </motion.div>
         </AnimatePresence>

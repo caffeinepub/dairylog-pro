@@ -14,7 +14,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -25,13 +24,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -49,16 +41,13 @@ import {
 } from "@/hooks/useQueries";
 import { currentMonthKey, groupByMonth } from "@/utils/groupByMonth";
 import {
-  CheckCircle2,
-  Clock,
   FolderOpen,
-  IndianRupee,
+  HandCoins,
   Loader2,
   Pencil,
   Plus,
   Printer,
   Trash2,
-  TrendingUp,
 } from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
@@ -67,53 +56,39 @@ import type { BuyerAdvancePayment } from "../backend.d";
 
 const today = () => new Date().toISOString().split("T")[0];
 
-type PaymentStatus = "paid" | "pending";
-
-// Encode/decode helpers for [PMT] prefix
-function encodePmtReason(status: PaymentStatus, note: string): string {
-  return `[PMT]status:${status}|note:${note}`;
+// Encode/decode helpers for [ADV] prefix
+function encodeAdvReason(buyerName: string, note: string): string {
+  return `[ADV]buyerName:${buyerName}|note:${note}`;
 }
 
-function decodePmtReason(reason: string): {
-  status: PaymentStatus;
-  note: string;
-} {
-  if (reason.startsWith("[PMT]")) {
-    const body = reason.slice(5);
-    const parts: Record<string, string> = {};
-    for (const part of body.split("|")) {
-      const idx = part.indexOf(":");
-      if (idx !== -1) {
-        parts[part.slice(0, idx)] = part.slice(idx + 1);
-      }
+function decodeAdvReason(reason: string): { buyerName: string; note: string } {
+  if (!reason.startsWith("[ADV]")) return { buyerName: "", note: reason };
+  const body = reason.slice(5);
+  const parts: Record<string, string> = {};
+  for (const part of body.split("|")) {
+    const idx = part.indexOf(":");
+    if (idx !== -1) {
+      parts[part.slice(0, idx)] = part.slice(idx + 1);
     }
-    const status: PaymentStatus =
-      parts.status === "pending" ? "pending" : "paid";
-    return { status, note: parts.note ?? "" };
   }
-  // Old records (no prefix, not [ADV]) → treat as paid
-  return { status: "paid", note: reason };
+  return { buyerName: parts.buyerName ?? "", note: parts.note ?? "" };
 }
 
-function isPaymentRecord(reason: string): boolean {
-  return !reason.startsWith("[ADV]");
-}
-
-interface PaymentForm {
+interface AdvForm {
   date: string;
+  buyerName: string;
   amount: string;
-  status: PaymentStatus;
   note: string;
 }
 
-const emptyForm = (): PaymentForm => ({
+const emptyForm = (): AdvForm => ({
   date: today(),
+  buyerName: "",
   amount: "",
-  status: "paid",
   note: "",
 });
 
-export function BuyerPaymentsPage({ isAdmin = false }: { isAdmin?: boolean }) {
+export function BuyerAdvancesPage({ isAdmin = false }: { isAdmin?: boolean }) {
   const { data: allRecords = [], isLoading } = useGetBuyerAdvancePayments();
   const addMutation = useAddBuyerAdvancePayment();
   const updateMutation = useUpdateBuyerAdvancePayment();
@@ -121,21 +96,16 @@ export function BuyerPaymentsPage({ isAdmin = false }: { isAdmin?: boolean }) {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<BuyerAdvancePayment | null>(null);
-  const [form, setForm] = useState<PaymentForm>(emptyForm());
+  const [form, setForm] = useState<AdvForm>(emptyForm());
   const [deleteTarget, setDeleteTarget] = useState<bigint | null>(null);
 
-  // Filter only payment records (not advances)
-  const payments = allRecords.filter((r) => isPaymentRecord(r.reason));
+  // Filter only [ADV] records
+  const advances = allRecords.filter((r) => r.reason.startsWith("[ADV]"));
 
-  const monthGroups = groupByMonth(payments, (p) => p.date);
+  const monthGroups = groupByMonth(advances, (p) => p.date);
   const curMonthKey = currentMonthKey();
 
-  const totalPaid = payments
-    .filter((p) => decodePmtReason(p.reason).status === "paid")
-    .reduce((s, p) => s + p.amount, 0);
-  const totalPending = payments
-    .filter((p) => decodePmtReason(p.reason).status === "pending")
-    .reduce((s, p) => s + p.amount, 0);
+  const grandTotal = advances.reduce((s, p) => s + p.amount, 0);
 
   function openAdd() {
     setEditing(null);
@@ -145,8 +115,8 @@ export function BuyerPaymentsPage({ isAdmin = false }: { isAdmin?: boolean }) {
 
   function openEdit(p: BuyerAdvancePayment) {
     setEditing(p);
-    const { status, note } = decodePmtReason(p.reason);
-    setForm({ date: p.date, amount: String(p.amount), status, note });
+    const { buyerName, note } = decodeAdvReason(p.reason);
+    setForm({ date: p.date, amount: String(p.amount), buyerName, note });
     setDialogOpen(true);
   }
 
@@ -156,7 +126,7 @@ export function BuyerPaymentsPage({ isAdmin = false }: { isAdmin?: boolean }) {
       toast.error("Please fill in date and a valid amount.");
       return;
     }
-    const reason = encodePmtReason(form.status, form.note);
+    const reason = encodeAdvReason(form.buyerName, form.note);
     try {
       if (editing) {
         await updateMutation.mutateAsync({
@@ -165,10 +135,10 @@ export function BuyerPaymentsPage({ isAdmin = false }: { isAdmin?: boolean }) {
           amount,
           reason,
         });
-        toast.success("Payment updated.");
+        toast.success("Advance updated.");
       } else {
         await addMutation.mutateAsync({ date: form.date, amount, reason });
-        toast.success("Payment recorded.");
+        toast.success("Advance recorded.");
       }
       setDialogOpen(false);
       addMutation.reset();
@@ -185,7 +155,7 @@ export function BuyerPaymentsPage({ isAdmin = false }: { isAdmin?: boolean }) {
     try {
       await deleteMutation.mutateAsync(idToDelete);
       deleteMutation.reset();
-      toast.success("Payment deleted.");
+      toast.success("Advance deleted.");
     } catch {
       toast.error("Delete failed. Please try again.");
     }
@@ -193,7 +163,7 @@ export function BuyerPaymentsPage({ isAdmin = false }: { isAdmin?: boolean }) {
 
   if (isLoading) {
     return (
-      <div data-ocid="payments.loading_state" className="space-y-3 mt-4">
+      <div data-ocid="advances.loading_state" className="space-y-3 mt-4">
         {[1, 2, 3].map((i) => (
           <Skeleton key={i} className="h-12 w-full rounded-lg" />
         ))}
@@ -216,25 +186,25 @@ export function BuyerPaymentsPage({ isAdmin = false }: { isAdmin?: boolean }) {
           })}
         </p>
         <hr className="my-2" />
-        <h2 className="text-base font-semibold">Buyer Payment Records</h2>
+        <h2 className="text-base font-semibold">Buyer Advances Records</h2>
       </div>
 
       {/* Page header */}
       <div className="print:hidden flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-green-600 flex items-center justify-center shadow">
-            <IndianRupee className="h-5 w-5 text-white" />
+          <div className="h-10 w-10 rounded-xl bg-orange-500 flex items-center justify-center shadow">
+            <HandCoins className="h-5 w-5 text-white" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-gray-800">Buyer Payments</h2>
+            <h2 className="text-lg font-bold text-gray-800">Buyer Advances</h2>
             <p className="text-xs text-gray-500">
-              10-day payment records from your buyer
+              Track advances given to buyers
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <Button
-            data-ocid="payments.print.button"
+            data-ocid="advances.print.button"
             variant="outline"
             size="sm"
             onClick={() => window.print()}
@@ -245,54 +215,49 @@ export function BuyerPaymentsPage({ isAdmin = false }: { isAdmin?: boolean }) {
           </Button>
           {isAdmin && (
             <Button
-              data-ocid="payments.add.primary_button"
+              data-ocid="advances.add.primary_button"
               size="sm"
               onClick={openAdd}
-              className="gap-1.5 h-8 bg-green-600 hover:bg-green-700 text-white"
+              className="gap-1.5 h-8 bg-orange-500 hover:bg-orange-600 text-white"
             >
               <Plus className="h-3.5 w-3.5" />
-              Add Payment
+              Add Advance
             </Button>
           )}
         </div>
       </div>
 
-      {/* Summary cards */}
-      {payments.length > 0 && (
+      {/* Summary card */}
+      {advances.length > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           className="print:block grid grid-cols-1 sm:grid-cols-2 gap-3"
         >
-          <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3">
-            <div className="h-9 w-9 rounded-lg bg-green-600 flex items-center justify-center flex-shrink-0">
-              <CheckCircle2 className="h-4 w-4 text-white" />
+          <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 flex items-center gap-3">
+            <div className="h-9 w-9 rounded-lg bg-orange-500 flex items-center justify-center flex-shrink-0">
+              <HandCoins className="h-4 w-4 text-white" />
             </div>
             <div>
-              <p className="text-xs text-green-700 font-medium">
-                Total Received (Paid)
+              <p className="text-xs text-orange-700 font-medium">
+                Total Advances Given
               </p>
-              <p className="text-xl font-bold text-green-800">
+              <p className="text-xl font-bold text-orange-800">
                 ₹
-                {totalPaid.toLocaleString("en-IN", {
+                {grandTotal.toLocaleString("en-IN", {
                   minimumFractionDigits: 2,
                 })}
               </p>
             </div>
           </div>
-          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 flex items-center gap-3">
-            <div className="h-9 w-9 rounded-lg bg-yellow-500 flex items-center justify-center flex-shrink-0">
-              <Clock className="h-4 w-4 text-white" />
+          <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 flex items-center gap-3">
+            <div className="h-9 w-9 rounded-lg bg-gray-500 flex items-center justify-center flex-shrink-0">
+              <HandCoins className="h-4 w-4 text-white" />
             </div>
             <div>
-              <p className="text-xs text-yellow-700 font-medium">
-                Total Pending
-              </p>
-              <p className="text-xl font-bold text-yellow-800">
-                ₹
-                {totalPending.toLocaleString("en-IN", {
-                  minimumFractionDigits: 2,
-                })}
+              <p className="text-xs text-gray-600 font-medium">Total Entries</p>
+              <p className="text-xl font-bold text-gray-800">
+                {advances.length}
               </p>
             </div>
           </div>
@@ -302,15 +267,15 @@ export function BuyerPaymentsPage({ isAdmin = false }: { isAdmin?: boolean }) {
       {/* Monthly groups */}
       {monthGroups.length === 0 ? (
         <div
-          data-ocid="payments.empty_state"
+          data-ocid="advances.empty_state"
           className="text-center py-16 text-gray-400"
         >
-          <IndianRupee className="h-10 w-10 mx-auto mb-3 opacity-30" />
-          <p className="font-medium">No payments recorded yet</p>
+          <HandCoins className="h-10 w-10 mx-auto mb-3 opacity-30" />
+          <p className="font-medium">No advances recorded yet</p>
           <p className="text-sm mt-1">
             {isAdmin
-              ? 'Click "Add Payment" to record your first payment.'
-              : "No payment records found."}
+              ? 'Click "Add Advance" to record your first advance.'
+              : "No advance records found."}
           </p>
         </div>
       ) : (
@@ -320,12 +285,6 @@ export function BuyerPaymentsPage({ isAdmin = false }: { isAdmin?: boolean }) {
           className="space-y-3"
         >
           {monthGroups.map((group, groupIdx) => {
-            const groupPaid = group.items
-              .filter((p) => decodePmtReason(p.reason).status === "paid")
-              .reduce((s, p) => s + p.amount, 0);
-            const groupPending = group.items
-              .filter((p) => decodePmtReason(p.reason).status === "pending")
-              .reduce((s, p) => s + p.amount, 0);
             const monthTotal = group.items.reduce((s, p) => s + p.amount, 0);
             const sorted = [...group.items].sort(
               (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
@@ -337,15 +296,15 @@ export function BuyerPaymentsPage({ isAdmin = false }: { isAdmin?: boolean }) {
                 className="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white"
               >
                 <AccordionTrigger
-                  data-ocid={`payments.month.toggle.${groupIdx + 1}`}
+                  data-ocid={`advances.month.toggle.${groupIdx + 1}`}
                   className="px-4 py-3 hover:no-underline hover:bg-gray-50"
                 >
                   <div className="flex items-center gap-2 flex-1 text-left">
-                    <FolderOpen className="h-4 w-4 text-green-600 flex-shrink-0" />
+                    <FolderOpen className="h-4 w-4 text-orange-500 flex-shrink-0" />
                     <span className="font-semibold text-gray-800">
                       {group.label}
                     </span>
-                    <span className="ml-auto mr-2 text-sm font-medium text-green-700 bg-green-50 px-2 py-0.5 rounded-full border border-green-200">
+                    <span className="ml-auto mr-2 text-sm font-medium text-orange-700 bg-orange-50 px-2 py-0.5 rounded-full border border-orange-200">
                       ₹
                       {monthTotal.toLocaleString("en-IN", {
                         minimumFractionDigits: 2,
@@ -355,7 +314,7 @@ export function BuyerPaymentsPage({ isAdmin = false }: { isAdmin?: boolean }) {
                 </AccordionTrigger>
                 <AccordionContent className="p-0">
                   <div className="overflow-x-auto">
-                    <Table data-ocid={`payments.month.table.${groupIdx + 1}`}>
+                    <Table data-ocid={`advances.month.table.${groupIdx + 1}`}>
                       <TableHeader>
                         <TableRow className="bg-gray-50">
                           <TableHead className="text-xs font-semibold text-gray-600">
@@ -365,10 +324,10 @@ export function BuyerPaymentsPage({ isAdmin = false }: { isAdmin?: boolean }) {
                             Date
                           </TableHead>
                           <TableHead className="text-xs font-semibold text-gray-600">
-                            Amount (₹)
+                            Buyer Name
                           </TableHead>
                           <TableHead className="text-xs font-semibold text-gray-600">
-                            Status
+                            Amount (₹)
                           </TableHead>
                           <TableHead className="text-xs font-semibold text-gray-600">
                             Note
@@ -381,21 +340,21 @@ export function BuyerPaymentsPage({ isAdmin = false }: { isAdmin?: boolean }) {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {sorted.map((payment, idx) => {
-                          const { status, note } = decodePmtReason(
-                            payment.reason,
+                        {sorted.map((adv, idx) => {
+                          const { buyerName, note } = decodeAdvReason(
+                            adv.reason,
                           );
                           return (
                             <TableRow
-                              key={String(payment.id)}
-                              data-ocid={`payments.item.${idx + 1}`}
+                              key={String(adv.id)}
+                              data-ocid={`advances.item.${idx + 1}`}
                               className="hover:bg-gray-50"
                             >
                               <TableCell className="text-xs text-gray-500">
                                 {idx + 1}
                               </TableCell>
                               <TableCell className="text-sm text-gray-800 whitespace-nowrap">
-                                {new Date(payment.date).toLocaleDateString(
+                                {new Date(adv.date).toLocaleDateString(
                                   "en-IN",
                                   {
                                     day: "2-digit",
@@ -404,24 +363,14 @@ export function BuyerPaymentsPage({ isAdmin = false }: { isAdmin?: boolean }) {
                                   },
                                 )}
                               </TableCell>
-                              <TableCell className="text-sm font-semibold text-green-700">
+                              <TableCell className="text-sm text-gray-800">
+                                {buyerName || "—"}
+                              </TableCell>
+                              <TableCell className="text-sm font-semibold text-orange-700">
                                 ₹
-                                {payment.amount.toLocaleString("en-IN", {
+                                {adv.amount.toLocaleString("en-IN", {
                                   minimumFractionDigits: 2,
                                 })}
-                              </TableCell>
-                              <TableCell>
-                                {status === "paid" ? (
-                                  <Badge className="bg-green-100 text-green-700 border border-green-200 hover:bg-green-100">
-                                    <CheckCircle2 className="h-3 w-3 mr-1" />
-                                    Paid
-                                  </Badge>
-                                ) : (
-                                  <Badge className="bg-yellow-100 text-yellow-700 border border-yellow-200 hover:bg-yellow-100">
-                                    <Clock className="h-3 w-3 mr-1" />
-                                    Pending
-                                  </Badge>
-                                )}
                               </TableCell>
                               <TableCell className="text-sm text-gray-600">
                                 {note || "—"}
@@ -430,21 +379,19 @@ export function BuyerPaymentsPage({ isAdmin = false }: { isAdmin?: boolean }) {
                                 <TableCell className="text-right print:hidden">
                                   <div className="flex items-center justify-end gap-1">
                                     <Button
-                                      data-ocid={`payments.edit_button.${idx + 1}`}
+                                      data-ocid={`advances.edit_button.${idx + 1}`}
                                       variant="ghost"
                                       size="icon"
-                                      onClick={() => openEdit(payment)}
+                                      onClick={() => openEdit(adv)}
                                       className="h-7 w-7 text-gray-400 hover:text-blue-600"
                                     >
                                       <Pencil className="h-3.5 w-3.5" />
                                     </Button>
                                     <Button
-                                      data-ocid={`payments.delete_button.${idx + 1}`}
+                                      data-ocid={`advances.delete_button.${idx + 1}`}
                                       variant="ghost"
                                       size="icon"
-                                      onClick={() =>
-                                        setDeleteTarget(payment.id)
-                                      }
+                                      onClick={() => setDeleteTarget(adv.id)}
                                       className="h-7 w-7 text-gray-400 hover:text-red-600"
                                     >
                                       <Trash2 className="h-3.5 w-3.5" />
@@ -458,36 +405,16 @@ export function BuyerPaymentsPage({ isAdmin = false }: { isAdmin?: boolean }) {
                       </TableBody>
                     </Table>
                   </div>
-
-                  {/* Monthly total card */}
-                  <div className="px-4 py-3 border-t border-gray-100 bg-green-50">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-semibold text-green-800">
-                        Monthly Total — {group.label}
-                      </span>
-                      <span className="text-base font-bold text-green-700">
-                        ₹
-                        {monthTotal.toLocaleString("en-IN", {
-                          minimumFractionDigits: 2,
-                        })}
-                      </span>
-                    </div>
-                    {groupPending > 0 && (
-                      <div className="flex items-center justify-between mt-1">
-                        <span className="text-xs text-yellow-700">
-                          <TrendingUp className="h-3 w-3 inline mr-1" />
-                          Paid: ₹
-                          {groupPaid.toLocaleString("en-IN", {
-                            minimumFractionDigits: 2,
-                          })}
-                          {" · "}
-                          Pending: ₹
-                          {groupPending.toLocaleString("en-IN", {
-                            minimumFractionDigits: 2,
-                          })}
-                        </span>
-                      </div>
-                    )}
+                  <div className="px-4 py-3 border-t border-gray-100 bg-orange-50 flex items-center justify-between">
+                    <span className="text-sm font-semibold text-orange-800">
+                      Monthly Total — {group.label}
+                    </span>
+                    <span className="text-base font-bold text-orange-700">
+                      ₹
+                      {monthTotal.toLocaleString("en-IN", {
+                        minimumFractionDigits: 2,
+                      })}
+                    </span>
                   </div>
                 </AccordionContent>
               </AccordionItem>
@@ -498,18 +425,18 @@ export function BuyerPaymentsPage({ isAdmin = false }: { isAdmin?: boolean }) {
 
       {/* Add/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent data-ocid="payments.dialog" className="sm:max-w-sm">
+        <DialogContent data-ocid="advances.dialog" className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>
-              {editing ? "Edit Payment" : "Record Payment"}
+              {editing ? "Edit Advance" : "Add Advance"}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-1.5">
-              <Label htmlFor="pay-date">Date</Label>
+              <Label htmlFor="adv-date">Date</Label>
               <Input
-                data-ocid="payments.date.input"
-                id="pay-date"
+                data-ocid="advances.date.input"
+                id="adv-date"
                 type="date"
                 value={form.date}
                 onChange={(e) =>
@@ -518,14 +445,26 @@ export function BuyerPaymentsPage({ isAdmin = false }: { isAdmin?: boolean }) {
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="pay-amount">Amount Received (₹)</Label>
+              <Label htmlFor="adv-buyer">Buyer Name (optional)</Label>
               <Input
-                data-ocid="payments.amount.input"
-                id="pay-amount"
+                data-ocid="advances.buyer_name.input"
+                id="adv-buyer"
+                placeholder="e.g. Ramesh Kumar"
+                value={form.buyerName}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, buyerName: e.target.value }))
+                }
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="adv-amount">Amount (₹)</Label>
+              <Input
+                data-ocid="advances.amount.input"
+                id="adv-amount"
                 type="number"
                 min="0"
                 step="0.01"
-                placeholder="e.g. 5000"
+                placeholder="e.g. 2000"
                 value={form.amount}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, amount: e.target.value }))
@@ -533,31 +472,11 @@ export function BuyerPaymentsPage({ isAdmin = false }: { isAdmin?: boolean }) {
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="pay-status">Status</Label>
-              <Select
-                value={form.status}
-                onValueChange={(v) =>
-                  setForm((f) => ({ ...f, status: v as PaymentStatus }))
-                }
-              >
-                <SelectTrigger
-                  data-ocid="payments.status.select"
-                  id="pay-status"
-                >
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="paid">Paid</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="pay-note">Note (optional)</Label>
+              <Label htmlFor="adv-note">Note (optional)</Label>
               <Input
-                data-ocid="payments.note.input"
-                id="pay-note"
-                placeholder="e.g. 10-day payment"
+                data-ocid="advances.note.input"
+                id="adv-note"
+                placeholder="e.g. advance for next cycle"
                 value={form.note}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, note: e.target.value }))
@@ -567,22 +486,22 @@ export function BuyerPaymentsPage({ isAdmin = false }: { isAdmin?: boolean }) {
           </div>
           <DialogFooter className="gap-2">
             <Button
-              data-ocid="payments.cancel_button"
+              data-ocid="advances.cancel_button"
               variant="outline"
               onClick={() => setDialogOpen(false)}
             >
               Cancel
             </Button>
             <Button
-              data-ocid="payments.save_button"
+              data-ocid="advances.save_button"
               onClick={handleSubmit}
               disabled={addMutation.isPending || updateMutation.isPending}
-              className="bg-green-600 hover:bg-green-700 text-white"
+              className="bg-orange-500 hover:bg-orange-600 text-white"
             >
               {addMutation.isPending || updateMutation.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
               ) : null}
-              {editing ? "Save Changes" : "Record Payment"}
+              {editing ? "Save Changes" : "Add Advance"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -593,22 +512,22 @@ export function BuyerPaymentsPage({ isAdmin = false }: { isAdmin?: boolean }) {
         open={deleteTarget !== null}
         onOpenChange={(open) => !open && setDeleteTarget(null)}
       >
-        <AlertDialogContent data-ocid="payments.delete.dialog">
+        <AlertDialogContent data-ocid="advances.delete.dialog">
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Payment?</AlertDialogTitle>
+            <AlertDialogTitle>Delete Advance?</AlertDialogTitle>
             <AlertDialogDescription>
-              This payment record will be permanently removed.
+              This advance record will be permanently removed.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel
-              data-ocid="payments.delete.cancel_button"
+              data-ocid="advances.delete.cancel_button"
               onClick={() => setDeleteTarget(null)}
             >
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
-              data-ocid="payments.delete.confirm_button"
+              data-ocid="advances.delete.confirm_button"
               onClick={handleDelete}
               className="bg-red-600 hover:bg-red-700 text-white"
             >
