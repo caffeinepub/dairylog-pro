@@ -120,7 +120,7 @@ export function StaffPage({ isAdmin = false }: { isAdmin?: boolean }) {
   const staffAdvances: AdvancePayment[] = advanceSheetStaff
     ? allAdvances
         .filter((a) => a.staffId.toString() === advanceSheetStaff.id.toString())
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
     : [];
 
   const advanceMonthGroups = groupByMonth(staffAdvances, (a) => a.date);

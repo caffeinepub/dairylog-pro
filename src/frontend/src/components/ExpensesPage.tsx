@@ -124,7 +124,7 @@ export function ExpensesPage({ isAdmin = false }: { isAdmin?: boolean }) {
 
   const filtered = [...expenses]
     .filter((e) => filter === "all" || e.status === filter)
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
   const monthGroups = groupByMonth(filtered, (e) => e.date);
   const curMonthKey = currentMonthKey();

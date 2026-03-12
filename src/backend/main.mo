@@ -8,11 +8,9 @@ import AccessControl "authorization/access-control";
 
 actor {
 
-  // Retained for upgrade compatibility: previous version stored accessControlState as stable.
-  // We keep it here so Motoko does not reject the upgrade due to a missing stable variable.
+  // Retained for upgrade compatibility
   let accessControlState = AccessControl.initState();
 
-  // User profile type and storage
   public type UserProfile = {
     name : Text;
   };
@@ -83,23 +81,48 @@ actor {
     notes : Text;
   };
 
+  // Stable storage for persistence across upgrades
+  stable var stableMilkRecords : [(Nat, MilkRecord)] = [];
+  stable var stableExpenses : [(Nat, Expense)] = [];
+  stable var stableStaffMembers : [(Nat, StaffMember)] = [];
+  stable var stableAdvancePayments : [(Nat, AdvancePayment)] = [];
+  stable var stableBuyerAdvancePayments : [(Nat, BuyerAdvancePayment)] = [];
+  stable var stableAnimals : [(Nat, Animal)] = [];
+
+  stable var nextMilkRecordId : Nat = 0;
+  stable var nextExpenseId : Nat = 0;
+  stable var nextStaffMemberId : Nat = 0;
+  stable var nextAdvancePaymentId : Nat = 0;
+  stable var nextBuyerAdvancePaymentId : Nat = 0;
+  stable var nextAnimalId : Nat = 0;
+
+  // In-memory maps (rebuilt from stable on upgrade)
   let milkRecords = Map.empty<Nat, MilkRecord>();
-  var nextMilkRecordId = 0;
-
   let expenses = Map.empty<Nat, Expense>();
-  var nextExpenseId = 0;
-
   let staffMembers = Map.empty<Nat, StaffMember>();
-  var nextStaffMemberId = 0;
-
   let advancePayments = Map.empty<Nat, AdvancePayment>();
-  var nextAdvancePaymentId = 0;
-
   let buyerAdvancePayments = Map.empty<Nat, BuyerAdvancePayment>();
-  var nextBuyerAdvancePaymentId = 0;
-
   let animals = Map.empty<Nat, Animal>();
-  var nextAnimalId = 0;
+
+  // Restore from stable storage on upgrade
+  do {
+    for ((k, v) in stableMilkRecords.vals()) { milkRecords.add(k, v) };
+    for ((k, v) in stableExpenses.vals()) { expenses.add(k, v) };
+    for ((k, v) in stableStaffMembers.vals()) { staffMembers.add(k, v) };
+    for ((k, v) in stableAdvancePayments.vals()) { advancePayments.add(k, v) };
+    for ((k, v) in stableBuyerAdvancePayments.vals()) { buyerAdvancePayments.add(k, v) };
+    for ((k, v) in stableAnimals.vals()) { animals.add(k, v) };
+  };
+
+  // Save to stable storage before upgrade
+  system func preupgrade() {
+    stableMilkRecords := milkRecords.entries().toArray();
+    stableExpenses := expenses.entries().toArray();
+    stableStaffMembers := staffMembers.entries().toArray();
+    stableAdvancePayments := advancePayments.entries().toArray();
+    stableBuyerAdvancePayments := buyerAdvancePayments.entries().toArray();
+    stableAnimals := animals.entries().toArray();
+  };
 
   func findMilkRecord(id : Nat) : MilkRecord {
     switch (milkRecords.get(id)) {

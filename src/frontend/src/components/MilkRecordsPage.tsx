@@ -128,7 +128,7 @@ export function MilkRecordsPage({ isAdmin = false }: { isAdmin?: boolean }) {
   >(null);
 
   const sorted = [...records].sort(
-    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
   );
 
   const monthGroups = groupByMonth(records, (r) => r.date);
@@ -298,7 +298,7 @@ export function MilkRecordsPage({ isAdmin = false }: { isAdmin?: boolean }) {
   const totalBuyerAdvances = buyerAdvances.reduce((s, a) => s + a.amount, 0);
 
   const sortedBuyerAdvances = [...buyerAdvances].sort(
-    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
   );
 
   const summaryCards = [
@@ -471,7 +471,7 @@ export function MilkRecordsPage({ isAdmin = false }: { isAdmin?: boolean }) {
             {monthGroups.map((group, groupIdx) => {
               const groupSorted = [...group.items].sort(
                 (a, b) =>
-                  new Date(b.date).getTime() - new Date(a.date).getTime(),
+                  new Date(a.date).getTime() - new Date(b.date).getTime(),
               );
               const totalL = group.items.reduce(
                 (s, r) => s + r.morningQuantity + r.eveningQuantity,
@@ -722,7 +722,7 @@ export function MilkRecordsPage({ isAdmin = false }: { isAdmin?: boolean }) {
             {advanceMonthGroups.map((group, groupIdx) => {
               const groupSorted = [...group.items].sort(
                 (a, b) =>
-                  new Date(b.date).getTime() - new Date(a.date).getTime(),
+                  new Date(a.date).getTime() - new Date(b.date).getTime(),
               );
               const groupTotal = group.items.reduce((s, a) => s + a.amount, 0);
               return (
