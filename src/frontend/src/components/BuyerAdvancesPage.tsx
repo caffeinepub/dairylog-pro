@@ -99,7 +99,7 @@ export function BuyerAdvancesPage({ isAdmin = false }: { isAdmin?: boolean }) {
   const [form, setForm] = useState<AdvForm>(emptyForm());
   const [deleteTarget, setDeleteTarget] = useState<bigint | null>(null);
 
-  // Filter only [ADV] records
+  // Only show records explicitly added as [ADV] (strict filter — completely separate from Buyer Payments)
   const advances = allRecords.filter((r) => r.reason.startsWith("[ADV]"));
 
   const monthGroups = groupByMonth(advances, (p) => p.date);

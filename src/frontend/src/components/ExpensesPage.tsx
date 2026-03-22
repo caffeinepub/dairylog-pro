@@ -80,12 +80,25 @@ const CATEGORIES = [
 ];
 const today = () => new Date().toISOString().split("T")[0];
 
+function parseExpenseStatus(status: string): {
+  type: "paid" | "pending" | "partial";
+  paidAmount?: number;
+} {
+  if (status.startsWith("partial:")) {
+    const paid = Number.parseFloat(status.slice(8));
+    return { type: "partial", paidAmount: Number.isNaN(paid) ? 0 : paid };
+  }
+  if (status === "paid") return { type: "paid" };
+  return { type: "pending" };
+}
+
 interface FormData {
   date: string;
   description: string;
   amount: string;
   category: string;
   status: string;
+  paidAmount: string;
   billPhoto: string | null;
 }
 
@@ -95,6 +108,7 @@ const emptyForm = (): FormData => ({
   amount: "",
   category: "Feed",
   status: "pending",
+  paidAmount: "",
   billPhoto: null,
 });
 
@@ -114,16 +128,35 @@ export function ExpensesPage({ isAdmin = false }: { isAdmin?: boolean }) {
   const [viewingPhoto, setViewingPhoto] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const totalPending = expenses
-    .filter((e) => e.status === "pending")
-    .reduce((s, e) => s + e.amount, 0);
-  const totalPaid = expenses
-    .filter((e) => e.status === "paid")
-    .reduce((s, e) => s + e.amount, 0);
-  const pendingCount = expenses.filter((e) => e.status === "pending").length;
+  const totalPending = expenses.reduce((s, e) => {
+    const parsed = parseExpenseStatus(e.status);
+    if (parsed.type === "pending") return s + e.amount;
+    if (parsed.type === "partial")
+      return s + (e.amount - (parsed.paidAmount ?? 0));
+    return s;
+  }, 0);
+
+  const totalPaid = expenses.reduce((s, e) => {
+    const parsed = parseExpenseStatus(e.status);
+    if (parsed.type === "paid") return s + e.amount;
+    if (parsed.type === "partial") return s + (parsed.paidAmount ?? 0);
+    return s;
+  }, 0);
+
+  const pendingCount = expenses.filter((e) => {
+    const parsed = parseExpenseStatus(e.status);
+    return parsed.type === "pending" || parsed.type === "partial";
+  }).length;
 
   const filtered = [...expenses]
-    .filter((e) => filter === "all" || e.status === filter)
+    .filter((e) => {
+      const parsed = parseExpenseStatus(e.status);
+      if (filter === "all") return true;
+      if (filter === "pending")
+        return parsed.type === "pending" || parsed.type === "partial";
+      if (filter === "paid") return parsed.type === "paid";
+      return true;
+    })
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
   const monthGroups = groupByMonth(filtered, (e) => e.date);
@@ -137,12 +170,15 @@ export function ExpensesPage({ isAdmin = false }: { isAdmin?: boolean }) {
 
   const openEdit = (expense: Expense) => {
     setEditing(expense);
+    const parsed = parseExpenseStatus(expense.status);
     setForm({
       date: expense.date,
       description: expense.description,
       amount: expense.amount.toString(),
       category: expense.category,
-      status: expense.status,
+      status: parsed.type,
+      paidAmount:
+        parsed.type === "partial" ? (parsed.paidAmount?.toString() ?? "") : "",
       billPhoto: billPhotos[expense.id.toString()] ?? null,
     });
     setDialogOpen(true);
@@ -164,22 +200,39 @@ export function ExpensesPage({ isAdmin = false }: { isAdmin?: boolean }) {
   };
 
   const handleSubmit = async () => {
-    const data = {
-      date: form.date,
-      description: form.description.trim(),
-      amount: Number.parseFloat(form.amount),
-      category: form.category,
-      status: form.status,
-    };
+    const amount = Number.parseFloat(form.amount);
     if (
-      !data.date ||
-      !data.description ||
-      Number.isNaN(data.amount) ||
-      data.amount <= 0
+      !form.date ||
+      !form.description.trim() ||
+      Number.isNaN(amount) ||
+      amount <= 0
     ) {
       toast.error("Please fill all fields with valid values");
       return;
     }
+
+    let statusToSave = form.status;
+    if (form.status === "partial") {
+      const paid = Number.parseFloat(form.paidAmount);
+      if (Number.isNaN(paid) || paid <= 0) {
+        toast.error("Please enter a valid paid amount");
+        return;
+      }
+      if (paid >= amount) {
+        toast.error("Paid amount must be less than total amount");
+        return;
+      }
+      statusToSave = `partial:${paid}`;
+    }
+
+    const data = {
+      date: form.date,
+      description: form.description.trim(),
+      amount,
+      category: form.category,
+      status: statusToSave,
+    };
+
     if (editing) {
       updateMutation.reset();
     } else {
@@ -248,7 +301,7 @@ export function ExpensesPage({ isAdmin = false }: { isAdmin?: boolean }) {
     {
       label: "Total Paid",
       value: `₹${totalPaid.toLocaleString("en-IN")}`,
-      sub: `${expenses.filter((e) => e.status === "paid").length} paid`,
+      sub: `${expenses.filter((e) => parseExpenseStatus(e.status).type === "paid").length} paid`,
       icon: CheckCircle2,
       color: "text-emerald-600",
       bg: "bg-emerald-50",
@@ -340,7 +393,13 @@ export function ExpensesPage({ isAdmin = false }: { isAdmin?: boolean }) {
                 Pending ({pendingCount})
               </TabsTrigger>
               <TabsTrigger value="paid" data-ocid="expense.filter.tab">
-                Paid ({expenses.filter((e) => e.status === "paid").length})
+                Paid (
+                {
+                  expenses.filter(
+                    (e) => parseExpenseStatus(e.status).type === "paid",
+                  ).length
+                }
+                )
               </TabsTrigger>
             </TabsList>
           </Tabs>
@@ -404,9 +463,10 @@ export function ExpensesPage({ isAdmin = false }: { isAdmin?: boolean }) {
           >
             {monthGroups.map((group, groupIdx) => {
               const groupTotal = group.items.reduce((s, e) => s + e.amount, 0);
-              const groupPending = group.items.filter(
-                (e) => e.status === "pending",
-              ).length;
+              const groupPending = group.items.filter((e) => {
+                const p = parseExpenseStatus(e.status);
+                return p.type === "pending" || p.type === "partial";
+              }).length;
               return (
                 <AccordionItem
                   key={group.monthKey}
@@ -450,113 +510,144 @@ export function ExpensesPage({ isAdmin = false }: { isAdmin?: boolean }) {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {group.items.map((expense, idx) => (
-                            <TableRow
-                              key={expense.id.toString()}
-                              data-ocid={`expense.item.${idx + 1}`}
-                              className="hover:bg-muted/40"
-                            >
-                              <TableCell className="font-medium whitespace-nowrap">
-                                {new Date(
-                                  `${expense.date}T00:00:00`,
-                                ).toLocaleDateString("en-IN", {
-                                  day: "numeric",
-                                  month: "short",
-                                  year: "numeric",
-                                })}
-                              </TableCell>
-                              <TableCell className="max-w-[180px] truncate">
-                                {expense.description}
-                              </TableCell>
-                              <TableCell>
-                                <span className="text-xs bg-muted px-2 py-0.5 rounded-full font-medium">
-                                  {expense.category}
-                                </span>
-                              </TableCell>
-                              <TableCell className="text-right font-semibold">
-                                ₹{expense.amount.toLocaleString("en-IN")}
-                              </TableCell>
-                              <TableCell>
-                                <Badge
-                                  className={
-                                    expense.status === "paid"
-                                      ? "badge-paid border font-medium text-xs"
-                                      : "badge-pending border font-medium text-xs"
-                                  }
-                                  variant="outline"
-                                >
-                                  {expense.status === "paid" ? (
-                                    <CheckCircle2 className="h-3 w-3 mr-1" />
-                                  ) : (
-                                    <Clock className="h-3 w-3 mr-1" />
-                                  )}
-                                  {expense.status === "paid"
-                                    ? "Paid"
-                                    : "Pending"}
-                                </Badge>
-                              </TableCell>
-                              <TableCell>
-                                {billPhotos[expense.id.toString()] ? (
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      setViewingPhoto(
-                                        billPhotos[expense.id.toString()],
-                                      )
-                                    }
-                                    className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800"
-                                    data-ocid={`expense.bill_photo.${idx + 1}`}
-                                  >
-                                    <Eye className="h-3.5 w-3.5" />
-                                    View
-                                  </button>
-                                ) : (
-                                  <span className="text-xs text-muted-foreground">
-                                    —
+                          {group.items.map((expense, idx) => {
+                            const parsedStatus = parseExpenseStatus(
+                              expense.status,
+                            );
+                            return (
+                              <TableRow
+                                key={expense.id.toString()}
+                                data-ocid={`expense.item.${idx + 1}`}
+                                className="hover:bg-muted/40"
+                              >
+                                <TableCell className="font-medium whitespace-nowrap">
+                                  {new Date(
+                                    `${expense.date}T00:00:00`,
+                                  ).toLocaleDateString("en-IN", {
+                                    day: "numeric",
+                                    month: "short",
+                                    year: "numeric",
+                                  })}
+                                </TableCell>
+                                <TableCell className="max-w-[180px] truncate">
+                                  {expense.description}
+                                </TableCell>
+                                <TableCell>
+                                  <span className="text-xs bg-muted px-2 py-0.5 rounded-full font-medium">
+                                    {expense.category}
                                   </span>
-                                )}
-                              </TableCell>
-                              {isAdmin && (
+                                </TableCell>
                                 <TableCell className="text-right">
-                                  <div className="flex items-center justify-end gap-1">
-                                    {expense.status === "pending" && (
+                                  <span className="font-semibold">
+                                    ₹{expense.amount.toLocaleString("en-IN")}
+                                  </span>
+                                  {parsedStatus.type === "partial" && (
+                                    <div className="text-xs text-muted-foreground mt-0.5">
+                                      Paid: ₹
+                                      {(
+                                        parsedStatus.paidAmount ?? 0
+                                      ).toLocaleString("en-IN")}{" "}
+                                      | Remaining: ₹
+                                      {(
+                                        expense.amount -
+                                        (parsedStatus.paidAmount ?? 0)
+                                      ).toLocaleString("en-IN")}
+                                    </div>
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  {parsedStatus.type === "paid" && (
+                                    <Badge
+                                      className="badge-paid border font-medium text-xs"
+                                      variant="outline"
+                                    >
+                                      <CheckCircle2 className="h-3 w-3 mr-1" />
+                                      Paid
+                                    </Badge>
+                                  )}
+                                  {parsedStatus.type === "pending" && (
+                                    <Badge
+                                      className="badge-pending border font-medium text-xs"
+                                      variant="outline"
+                                    >
+                                      <Clock className="h-3 w-3 mr-1" />
+                                      Pending
+                                    </Badge>
+                                  )}
+                                  {parsedStatus.type === "partial" && (
+                                    <Badge
+                                      className="bg-orange-100 text-orange-700 border-orange-300 border font-medium text-xs"
+                                      variant="outline"
+                                    >
+                                      <Clock className="h-3 w-3 mr-1" />
+                                      Partial
+                                    </Badge>
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  {billPhotos[expense.id.toString()] ? (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setViewingPhoto(
+                                          billPhotos[expense.id.toString()],
+                                        )
+                                      }
+                                      className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800"
+                                      data-ocid={`expense.bill_photo.${idx + 1}`}
+                                    >
+                                      <Eye className="h-3.5 w-3.5" />
+                                      View
+                                    </button>
+                                  ) : (
+                                    <span className="text-xs text-muted-foreground">
+                                      —
+                                    </span>
+                                  )}
+                                </TableCell>
+                                {isAdmin && (
+                                  <TableCell className="text-right">
+                                    <div className="flex items-center justify-end gap-1">
+                                      {(parsedStatus.type === "pending" ||
+                                        parsedStatus.type === "partial") && (
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() =>
+                                            handleMarkPaid(expense.id)
+                                          }
+                                          data-ocid={`expense.paid_button.${idx + 1}`}
+                                          className="h-7 px-2 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 text-xs gap-1"
+                                          disabled={markPaidMutation.isPending}
+                                        >
+                                          <CheckCircle2 className="h-3.5 w-3.5" />
+                                          Mark Paid
+                                        </Button>
+                                      )}
                                       <Button
                                         variant="ghost"
-                                        size="sm"
-                                        onClick={() =>
-                                          handleMarkPaid(expense.id)
-                                        }
-                                        data-ocid={`expense.paid_button.${idx + 1}`}
-                                        className="h-7 px-2 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 text-xs gap-1"
-                                        disabled={markPaidMutation.isPending}
+                                        size="icon"
+                                        onClick={() => openEdit(expense)}
+                                        data-ocid={`expense.edit_button.${idx + 1}`}
+                                        className="h-8 w-8"
                                       >
-                                        <CheckCircle2 className="h-3.5 w-3.5" />
-                                        Mark Paid
+                                        <Pencil className="h-3.5 w-3.5" />
                                       </Button>
-                                    )}
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      onClick={() => openEdit(expense)}
-                                      data-ocid={`expense.edit_button.${idx + 1}`}
-                                      className="h-8 w-8"
-                                    >
-                                      <Pencil className="h-3.5 w-3.5" />
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      onClick={() => setDeleteId(expense.id)}
-                                      data-ocid={`expense.delete_button.${idx + 1}`}
-                                      className="h-8 w-8 text-destructive hover:text-destructive"
-                                    >
-                                      <Trash2 className="h-3.5 w-3.5" />
-                                    </Button>
-                                  </div>
-                                </TableCell>
-                              )}
-                            </TableRow>
-                          ))}
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => setDeleteId(expense.id)}
+                                        data-ocid={`expense.delete_button.${idx + 1}`}
+                                        className="h-8 w-8 text-destructive hover:text-destructive"
+                                      >
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                )}
+                              </TableRow>
+                            );
+                          })}
                         </TableBody>
                       </Table>
                     </div>
@@ -641,18 +732,53 @@ export function ExpensesPage({ isAdmin = false }: { isAdmin?: boolean }) {
                 <Label htmlFor="expense-status">Status</Label>
                 <Select
                   value={form.status}
-                  onValueChange={(v) => setForm((f) => ({ ...f, status: v }))}
+                  onValueChange={(v) =>
+                    setForm((f) => ({ ...f, status: v, paidAmount: "" }))
+                  }
                 >
-                  <SelectTrigger id="expense-status" className="mt-1">
+                  <SelectTrigger
+                    id="expense-status"
+                    className="mt-1"
+                    data-ocid="expense.form.select"
+                  >
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="partial">Partial</SelectItem>
                     <SelectItem value="paid">Paid</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
+            {form.status === "partial" && (
+              <div>
+                <Label htmlFor="expense-paid-amount">Paid Amount (₹)</Label>
+                <Input
+                  id="expense-paid-amount"
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={form.paidAmount}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, paidAmount: e.target.value }))
+                  }
+                  placeholder="Amount paid so far"
+                  className="mt-1"
+                  data-ocid="expense.form.input"
+                />
+                {form.amount && form.paidAmount && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Remaining: ₹
+                    {Math.max(
+                      0,
+                      Number.parseFloat(form.amount) -
+                        Number.parseFloat(form.paidAmount),
+                    ).toLocaleString("en-IN")}
+                  </p>
+                )}
+              </div>
+            )}
             {/* Bill Photo Upload */}
             <div>
               <Label>Bill / Receipt Photo (optional)</Label>

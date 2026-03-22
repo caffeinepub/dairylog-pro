@@ -63,7 +63,7 @@ const navItems: {
 export default function App() {
   const [page, setPage] = useState<Page>("milk");
   const [unlocked, setUnlocked] = useState<boolean>(
-    () => sessionStorage.getItem(SESSION_KEY) === "1",
+    () => localStorage.getItem(SESSION_KEY) === "1",
   );
   const [passwordInput, setPasswordInput] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -76,7 +76,7 @@ export default function App() {
   function handleUnlock(e: React.FormEvent) {
     e.preventDefault();
     if (passwordInput === APP_PASSWORD) {
-      sessionStorage.setItem(SESSION_KEY, "1");
+      localStorage.setItem(SESSION_KEY, "1");
       setUnlocked(true);
       setError("");
     } else {
@@ -86,7 +86,7 @@ export default function App() {
   }
 
   function handleLock() {
-    sessionStorage.removeItem(SESSION_KEY);
+    localStorage.removeItem(SESSION_KEY);
     setUnlocked(false);
     setPasswordInput("");
     setError("");
