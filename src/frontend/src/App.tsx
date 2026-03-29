@@ -9,6 +9,7 @@ import {
   HandCoins,
   IndianRupee,
   Lock,
+  Package,
   Receipt,
   Users,
 } from "lucide-react";
@@ -18,10 +19,18 @@ import { AnimalsPage } from "./components/AnimalsPage";
 import { BuyerAdvancesPage } from "./components/BuyerAdvancesPage";
 import { BuyerPaymentsPage } from "./components/BuyerPaymentsPage";
 import { ExpensesPage } from "./components/ExpensesPage";
+import { InventoryPage } from "./components/InventoryPage";
 import { MilkRecordsPage } from "./components/MilkRecordsPage";
 import { StaffPage } from "./components/StaffPage";
 
-type Page = "milk" | "expenses" | "staff" | "animals" | "advances" | "payments";
+type Page =
+  | "milk"
+  | "expenses"
+  | "staff"
+  | "animals"
+  | "advances"
+  | "payments"
+  | "inventory";
 
 const APP_PASSWORD = "Dairy@123";
 const SESSION_KEY = "shd_unlocked";
@@ -57,6 +66,12 @@ const navItems: {
     label: "Buyer Payments",
     icon: IndianRupee,
     ocid: "nav.buyer_payments.tab",
+  },
+  {
+    id: "inventory",
+    label: "Inventory",
+    icon: Package,
+    ocid: "nav.inventory.tab",
   },
 ];
 
@@ -291,6 +306,7 @@ export default function App() {
             {page === "animals" && <AnimalsPage isAdmin={isAdmin} />}
             {page === "advances" && <BuyerAdvancesPage isAdmin={isAdmin} />}
             {page === "payments" && <BuyerPaymentsPage isAdmin={isAdmin} />}
+            {page === "inventory" && <InventoryPage isAdmin={isAdmin} />}
           </motion.div>
         </AnimatePresence>
       </main>

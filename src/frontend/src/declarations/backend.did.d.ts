@@ -60,6 +60,31 @@ export interface UserProfile { 'name' : string }
 export type UserRole = { 'admin' : null } |
   { 'user' : null } |
   { 'guest' : null };
+export interface InventoryItem {
+  'id' : bigint,
+  'name' : string,
+  'category' : string,
+  'unit' : string,
+  'lowStockThreshold' : number,
+  'notes' : string,
+}
+export interface PurchaseRecord {
+  'id' : bigint,
+  'itemId' : bigint,
+  'date' : string,
+  'quantity' : number,
+  'price' : number,
+  'supplierName' : string,
+  'notes' : string,
+}
+export interface UsageRecord {
+  'id' : bigint,
+  'itemId' : bigint,
+  'date' : string,
+  'quantity' : number,
+  'purpose' : string,
+  'notes' : string,
+}
 export interface _SERVICE {
   '_initializeAccessControlWithSecret' : ActorMethod<[string], undefined>,
   'addAdvancePayment' : ActorMethod<[bigint, string, number, string], bigint>,
@@ -110,6 +135,18 @@ export interface _SERVICE {
     [bigint, string, string, number],
     undefined
   >,
+  'addInventoryItem' : ActorMethod<[string, string, string, number, string], bigint>,
+  'updateInventoryItem' : ActorMethod<[bigint, string, string, string, number, string], undefined>,
+  'deleteInventoryItem' : ActorMethod<[bigint], undefined>,
+  'getInventoryItems' : ActorMethod<[], Array<InventoryItem>>,
+  'addPurchaseRecord' : ActorMethod<[bigint, string, number, number, string, string], bigint>,
+  'updatePurchaseRecord' : ActorMethod<[bigint, bigint, string, number, number, string, string], undefined>,
+  'deletePurchaseRecord' : ActorMethod<[bigint], undefined>,
+  'getPurchaseRecords' : ActorMethod<[], Array<PurchaseRecord>>,
+  'addUsageRecord' : ActorMethod<[bigint, string, number, string, string], bigint>,
+  'updateUsageRecord' : ActorMethod<[bigint, bigint, string, number, string, string], undefined>,
+  'deleteUsageRecord' : ActorMethod<[bigint], undefined>,
+  'getUsageRecords' : ActorMethod<[], Array<UsageRecord>>,
 }
 export declare const idlService: IDL.ServiceClass;
 export declare const idlInitArgs: IDL.Type[];

@@ -138,6 +138,32 @@ export interface Animal {
     animalType: string;
     semenDate: string;
 }
+
+export interface InventoryItem {
+    id: bigint;
+    name: string;
+    category: string;
+    unit: string;
+    lowStockThreshold: number;
+    notes: string;
+}
+export interface PurchaseRecord {
+    id: bigint;
+    itemId: bigint;
+    date: string;
+    quantity: number;
+    price: number;
+    supplierName: string;
+    notes: string;
+}
+export interface UsageRecord {
+    id: bigint;
+    itemId: bigint;
+    date: string;
+    quantity: number;
+    purpose: string;
+    notes: string;
+}
 export enum UserRole {
     admin = "admin",
     user = "user",
@@ -175,6 +201,18 @@ export interface backendInterface {
     updateExpense(id: bigint, date: string, description: string, amount: number, category: string, status: string): Promise<void>;
     updateMilkRecord(id: bigint, date: string, morningQuantity: number, morningFat: number, morningAmount: number, eveningQuantity: number, eveningFat: number, eveningAmount: number): Promise<void>;
     updateStaffMember(id: bigint, name: string, role: string, monthlySalary: number): Promise<void>;
+    addInventoryItem(name: string, category: string, unit: string, lowStockThreshold: number, notes: string): Promise<bigint>;
+    updateInventoryItem(id: bigint, name: string, category: string, unit: string, lowStockThreshold: number, notes: string): Promise<void>;
+    deleteInventoryItem(id: bigint): Promise<void>;
+    getInventoryItems(): Promise<Array<InventoryItem>>;
+    addPurchaseRecord(itemId: bigint, date: string, quantity: number, price: number, supplierName: string, notes: string): Promise<bigint>;
+    updatePurchaseRecord(id: bigint, itemId: bigint, date: string, quantity: number, price: number, supplierName: string, notes: string): Promise<void>;
+    deletePurchaseRecord(id: bigint): Promise<void>;
+    getPurchaseRecords(): Promise<Array<PurchaseRecord>>;
+    addUsageRecord(itemId: bigint, date: string, quantity: number, purpose: string, notes: string): Promise<bigint>;
+    updateUsageRecord(id: bigint, itemId: bigint, date: string, quantity: number, purpose: string, notes: string): Promise<void>;
+    deleteUsageRecord(id: bigint): Promise<void>;
+    getUsageRecords(): Promise<Array<UsageRecord>>;
 }
 import type { UserProfile as _UserProfile, UserRole as _UserRole } from "./declarations/backend.did.d.ts";
 export class Backend implements backendInterface {
@@ -613,6 +651,66 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async addInventoryItem(arg0: string, arg1: string, arg2: string, arg3: number, arg4: string): Promise<bigint> {
+        if (this.processError) {
+            try { const result = await this.actor.addInventoryItem(arg0, arg1, arg2, arg3, arg4); return result; } catch (e) { this.processError(e); throw new Error("unreachable"); }
+        } else { const result = await this.actor.addInventoryItem(arg0, arg1, arg2, arg3, arg4); return result; }
+    }
+    async updateInventoryItem(arg0: bigint, arg1: string, arg2: string, arg3: string, arg4: number, arg5: string): Promise<void> {
+        if (this.processError) {
+            try { const result = await this.actor.updateInventoryItem(arg0, arg1, arg2, arg3, arg4, arg5); return result; } catch (e) { this.processError(e); throw new Error("unreachable"); }
+        } else { const result = await this.actor.updateInventoryItem(arg0, arg1, arg2, arg3, arg4, arg5); return result; }
+    }
+    async deleteInventoryItem(arg0: bigint): Promise<void> {
+        if (this.processError) {
+            try { const result = await this.actor.deleteInventoryItem(arg0); return result; } catch (e) { this.processError(e); throw new Error("unreachable"); }
+        } else { const result = await this.actor.deleteInventoryItem(arg0); return result; }
+    }
+    async getInventoryItems(): Promise<Array<InventoryItem>> {
+        if (this.processError) {
+            try { const result = await this.actor.getInventoryItems(); return result; } catch (e) { this.processError(e); throw new Error("unreachable"); }
+        } else { const result = await this.actor.getInventoryItems(); return result; }
+    }
+    async addPurchaseRecord(arg0: bigint, arg1: string, arg2: number, arg3: number, arg4: string, arg5: string): Promise<bigint> {
+        if (this.processError) {
+            try { const result = await this.actor.addPurchaseRecord(arg0, arg1, arg2, arg3, arg4, arg5); return result; } catch (e) { this.processError(e); throw new Error("unreachable"); }
+        } else { const result = await this.actor.addPurchaseRecord(arg0, arg1, arg2, arg3, arg4, arg5); return result; }
+    }
+    async updatePurchaseRecord(arg0: bigint, arg1: bigint, arg2: string, arg3: number, arg4: number, arg5: string, arg6: string): Promise<void> {
+        if (this.processError) {
+            try { const result = await this.actor.updatePurchaseRecord(arg0, arg1, arg2, arg3, arg4, arg5, arg6); return result; } catch (e) { this.processError(e); throw new Error("unreachable"); }
+        } else { const result = await this.actor.updatePurchaseRecord(arg0, arg1, arg2, arg3, arg4, arg5, arg6); return result; }
+    }
+    async deletePurchaseRecord(arg0: bigint): Promise<void> {
+        if (this.processError) {
+            try { const result = await this.actor.deletePurchaseRecord(arg0); return result; } catch (e) { this.processError(e); throw new Error("unreachable"); }
+        } else { const result = await this.actor.deletePurchaseRecord(arg0); return result; }
+    }
+    async getPurchaseRecords(): Promise<Array<PurchaseRecord>> {
+        if (this.processError) {
+            try { const result = await this.actor.getPurchaseRecords(); return result; } catch (e) { this.processError(e); throw new Error("unreachable"); }
+        } else { const result = await this.actor.getPurchaseRecords(); return result; }
+    }
+    async addUsageRecord(arg0: bigint, arg1: string, arg2: number, arg3: string, arg4: string): Promise<bigint> {
+        if (this.processError) {
+            try { const result = await this.actor.addUsageRecord(arg0, arg1, arg2, arg3, arg4); return result; } catch (e) { this.processError(e); throw new Error("unreachable"); }
+        } else { const result = await this.actor.addUsageRecord(arg0, arg1, arg2, arg3, arg4); return result; }
+    }
+    async updateUsageRecord(arg0: bigint, arg1: bigint, arg2: string, arg3: number, arg4: string, arg5: string): Promise<void> {
+        if (this.processError) {
+            try { const result = await this.actor.updateUsageRecord(arg0, arg1, arg2, arg3, arg4, arg5); return result; } catch (e) { this.processError(e); throw new Error("unreachable"); }
+        } else { const result = await this.actor.updateUsageRecord(arg0, arg1, arg2, arg3, arg4, arg5); return result; }
+    }
+    async deleteUsageRecord(arg0: bigint): Promise<void> {
+        if (this.processError) {
+            try { const result = await this.actor.deleteUsageRecord(arg0); return result; } catch (e) { this.processError(e); throw new Error("unreachable"); }
+        } else { const result = await this.actor.deleteUsageRecord(arg0); return result; }
+    }
+    async getUsageRecords(): Promise<Array<UsageRecord>> {
+        if (this.processError) {
+            try { const result = await this.actor.getUsageRecords(); return result; } catch (e) { this.processError(e); throw new Error("unreachable"); }
+        } else { const result = await this.actor.getUsageRecords(); return result; }
+    }
 }
 function from_candid_UserRole_n4(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _UserRole): UserRole {
     return from_candid_variant_n5(_uploadFile, _downloadFile, value);
@@ -647,6 +745,7 @@ function to_candid_variant_n2(_uploadFile: (file: ExternalBlob) => Promise<Uint8
         guest: null
     } : value;
 }
+
 export interface CreateActorOptions {
     agent?: Agent;
     agentOptions?: HttpAgentOptions;

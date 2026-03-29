@@ -56,6 +56,31 @@ export interface Animal {
     animalType: string;
     semenDate: string;
 }
+export interface InventoryItem {
+    id: bigint;
+    name: string;
+    category: string;
+    unit: string;
+    lowStockThreshold: number;
+    notes: string;
+}
+export interface PurchaseRecord {
+    id: bigint;
+    itemId: bigint;
+    date: string;
+    quantity: number;
+    price: number;
+    supplierName: string;
+    notes: string;
+}
+export interface UsageRecord {
+    id: bigint;
+    itemId: bigint;
+    date: string;
+    quantity: number;
+    purpose: string;
+    notes: string;
+}
 export enum UserRole {
     admin = "admin",
     user = "user",
@@ -68,6 +93,9 @@ export interface backendInterface {
     addExpense(date: string, description: string, amount: number, category: string, status: string): Promise<bigint>;
     addMilkRecord(date: string, morningQuantity: number, morningFat: number, morningAmount: number, eveningQuantity: number, eveningFat: number, eveningAmount: number): Promise<bigint>;
     addStaffMember(name: string, role: string, monthlySalary: number): Promise<bigint>;
+    addInventoryItem(name: string, category: string, unit: string, lowStockThreshold: number, notes: string): Promise<bigint>;
+    addPurchaseRecord(itemId: bigint, date: string, quantity: number, price: number, supplierName: string, notes: string): Promise<bigint>;
+    addUsageRecord(itemId: bigint, date: string, quantity: number, purpose: string, notes: string): Promise<bigint>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
     deleteAdvancePayment(id: bigint): Promise<void>;
     deleteAnimal(id: bigint): Promise<void>;
@@ -75,6 +103,9 @@ export interface backendInterface {
     deleteExpense(id: bigint): Promise<void>;
     deleteMilkRecord(id: bigint): Promise<void>;
     deleteStaffMember(id: bigint): Promise<void>;
+    deleteInventoryItem(id: bigint): Promise<void>;
+    deletePurchaseRecord(id: bigint): Promise<void>;
+    deleteUsageRecord(id: bigint): Promise<void>;
     getAdvancePayments(): Promise<Array<AdvancePayment>>;
     getAnimals(): Promise<Array<Animal>>;
     getBuyerAdvancePayments(): Promise<Array<BuyerAdvancePayment>>;
@@ -84,6 +115,9 @@ export interface backendInterface {
     getMilkRecords(): Promise<Array<MilkRecord>>;
     getStaffMembers(): Promise<Array<StaffMember>>;
     getUserProfile(user: Principal): Promise<UserProfile | null>;
+    getInventoryItems(): Promise<Array<InventoryItem>>;
+    getPurchaseRecords(): Promise<Array<PurchaseRecord>>;
+    getUsageRecords(): Promise<Array<UsageRecord>>;
     isCallerAdmin(): Promise<boolean>;
     markExpensePaid(id: bigint): Promise<void>;
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
@@ -92,4 +126,7 @@ export interface backendInterface {
     updateExpense(id: bigint, date: string, description: string, amount: number, category: string, status: string): Promise<void>;
     updateMilkRecord(id: bigint, date: string, morningQuantity: number, morningFat: number, morningAmount: number, eveningQuantity: number, eveningFat: number, eveningAmount: number): Promise<void>;
     updateStaffMember(id: bigint, name: string, role: string, monthlySalary: number): Promise<void>;
+    updateInventoryItem(id: bigint, name: string, category: string, unit: string, lowStockThreshold: number, notes: string): Promise<void>;
+    updatePurchaseRecord(id: bigint, itemId: bigint, date: string, quantity: number, price: number, supplierName: string, notes: string): Promise<void>;
+    updateUsageRecord(id: bigint, itemId: bigint, date: string, quantity: number, purpose: string, notes: string): Promise<void>;
 }

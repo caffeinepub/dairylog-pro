@@ -81,6 +81,34 @@ actor {
     notes : Text;
   };
 
+  type InventoryItem = {
+    id : Nat;
+    name : Text;
+    category : Text;
+    unit : Text;
+    lowStockThreshold : Float;
+    notes : Text;
+  };
+
+  type PurchaseRecord = {
+    id : Nat;
+    itemId : Nat;
+    date : Text;
+    quantity : Float;
+    price : Float;
+    supplierName : Text;
+    notes : Text;
+  };
+
+  type UsageRecord = {
+    id : Nat;
+    itemId : Nat;
+    date : Text;
+    quantity : Float;
+    purpose : Text;
+    notes : Text;
+  };
+
   // Stable storage for persistence across upgrades
   stable var stableMilkRecords : [(Nat, MilkRecord)] = [];
   stable var stableExpenses : [(Nat, Expense)] = [];
@@ -88,6 +116,9 @@ actor {
   stable var stableAdvancePayments : [(Nat, AdvancePayment)] = [];
   stable var stableBuyerAdvancePayments : [(Nat, BuyerAdvancePayment)] = [];
   stable var stableAnimals : [(Nat, Animal)] = [];
+  stable var stableInventoryItems : [(Nat, InventoryItem)] = [];
+  stable var stablePurchaseRecords : [(Nat, PurchaseRecord)] = [];
+  stable var stableUsageRecords : [(Nat, UsageRecord)] = [];
 
   stable var nextMilkRecordId : Nat = 0;
   stable var nextExpenseId : Nat = 0;
@@ -95,6 +126,9 @@ actor {
   stable var nextAdvancePaymentId : Nat = 0;
   stable var nextBuyerAdvancePaymentId : Nat = 0;
   stable var nextAnimalId : Nat = 0;
+  stable var nextInventoryItemId : Nat = 0;
+  stable var nextPurchaseRecordId : Nat = 0;
+  stable var nextUsageRecordId : Nat = 0;
 
   // In-memory maps (rebuilt from stable on upgrade)
   let milkRecords = Map.empty<Nat, MilkRecord>();
@@ -103,6 +137,9 @@ actor {
   let advancePayments = Map.empty<Nat, AdvancePayment>();
   let buyerAdvancePayments = Map.empty<Nat, BuyerAdvancePayment>();
   let animals = Map.empty<Nat, Animal>();
+  let inventoryItems = Map.empty<Nat, InventoryItem>();
+  let purchaseRecords = Map.empty<Nat, PurchaseRecord>();
+  let usageRecords = Map.empty<Nat, UsageRecord>();
 
   // Restore from stable storage on upgrade
   do {
@@ -112,6 +149,9 @@ actor {
     for ((k, v) in stableAdvancePayments.vals()) { advancePayments.add(k, v) };
     for ((k, v) in stableBuyerAdvancePayments.vals()) { buyerAdvancePayments.add(k, v) };
     for ((k, v) in stableAnimals.vals()) { animals.add(k, v) };
+    for ((k, v) in stableInventoryItems.vals()) { inventoryItems.add(k, v) };
+    for ((k, v) in stablePurchaseRecords.vals()) { purchaseRecords.add(k, v) };
+    for ((k, v) in stableUsageRecords.vals()) { usageRecords.add(k, v) };
   };
 
   // Save to stable storage before upgrade
@@ -122,6 +162,9 @@ actor {
     stableAdvancePayments := advancePayments.entries().toArray();
     stableBuyerAdvancePayments := buyerAdvancePayments.entries().toArray();
     stableAnimals := animals.entries().toArray();
+    stableInventoryItems := inventoryItems.entries().toArray();
+    stablePurchaseRecords := purchaseRecords.entries().toArray();
+    stableUsageRecords := usageRecords.entries().toArray();
   };
 
   func findMilkRecord(id : Nat) : MilkRecord {
@@ -163,6 +206,27 @@ actor {
     switch (animals.get(id)) {
       case (null) { Runtime.trap("Animal not found") };
       case (?animal) { animal };
+    };
+  };
+
+  func findInventoryItem(id : Nat) : InventoryItem {
+    switch (inventoryItems.get(id)) {
+      case (null) { Runtime.trap("Inventory item not found") };
+      case (?item) { item };
+    };
+  };
+
+  func findPurchaseRecord(id : Nat) : PurchaseRecord {
+    switch (purchaseRecords.get(id)) {
+      case (null) { Runtime.trap("Purchase record not found") };
+      case (?record) { record };
+    };
+  };
+
+  func findUsageRecord(id : Nat) : UsageRecord {
+    switch (usageRecords.get(id)) {
+      case (null) { Runtime.trap("Usage record not found") };
+      case (?record) { record };
     };
   };
 
@@ -491,5 +555,190 @@ actor {
 
   public query func getAnimals() : async [Animal] {
     animals.values().toArray();
+  };
+
+  //---------------------------------------------------------------------------
+  // InventoryItem operations
+  //---------------------------------------------------------------------------
+  public shared func addInventoryItem(
+    name : Text,
+    category : Text,
+    unit : Text,
+    lowStockThreshold : Float,
+    notes : Text,
+  ) : async Nat {
+    let id = nextInventoryItemId;
+    nextInventoryItemId += 1;
+
+    let item : InventoryItem = {
+      id;
+      name;
+      category;
+      unit;
+      lowStockThreshold;
+      notes;
+    };
+
+    inventoryItems.add(id, item);
+    id;
+  };
+
+  public shared func updateInventoryItem(
+    id : Nat,
+    name : Text,
+    category : Text,
+    unit : Text,
+    lowStockThreshold : Float,
+    notes : Text,
+  ) : async () {
+    let _ = findInventoryItem(id);
+
+    let updatedItem : InventoryItem = {
+      id;
+      name;
+      category;
+      unit;
+      lowStockThreshold;
+      notes;
+    };
+    inventoryItems.add(id, updatedItem);
+  };
+
+  public shared func deleteInventoryItem(id : Nat) : async () {
+    let _ = findInventoryItem(id);
+    inventoryItems.remove(id);
+    // also remove related purchase and usage records
+    let prIds = purchaseRecords.entries().toArray();
+    for ((k, v) in prIds.vals()) {
+      if (v.itemId == id) { purchaseRecords.remove(k) };
+    };
+    let urIds = usageRecords.entries().toArray();
+    for ((k, v) in urIds.vals()) {
+      if (v.itemId == id) { usageRecords.remove(k) };
+    };
+  };
+
+  public query func getInventoryItems() : async [InventoryItem] {
+    inventoryItems.values().toArray();
+  };
+
+  //---------------------------------------------------------------------------
+  // PurchaseRecord operations
+  //---------------------------------------------------------------------------
+  public shared func addPurchaseRecord(
+    itemId : Nat,
+    date : Text,
+    quantity : Float,
+    price : Float,
+    supplierName : Text,
+    notes : Text,
+  ) : async Nat {
+    let _ = findInventoryItem(itemId);
+
+    let id = nextPurchaseRecordId;
+    nextPurchaseRecordId += 1;
+
+    let record : PurchaseRecord = {
+      id;
+      itemId;
+      date;
+      quantity;
+      price;
+      supplierName;
+      notes;
+    };
+
+    purchaseRecords.add(id, record);
+    id;
+  };
+
+  public shared func updatePurchaseRecord(
+    id : Nat,
+    itemId : Nat,
+    date : Text,
+    quantity : Float,
+    price : Float,
+    supplierName : Text,
+    notes : Text,
+  ) : async () {
+    let _ = findPurchaseRecord(id);
+
+    let updatedRecord : PurchaseRecord = {
+      id;
+      itemId;
+      date;
+      quantity;
+      price;
+      supplierName;
+      notes;
+    };
+    purchaseRecords.add(id, updatedRecord);
+  };
+
+  public shared func deletePurchaseRecord(id : Nat) : async () {
+    let _ = findPurchaseRecord(id);
+    purchaseRecords.remove(id);
+  };
+
+  public query func getPurchaseRecords() : async [PurchaseRecord] {
+    purchaseRecords.values().toArray();
+  };
+
+  //---------------------------------------------------------------------------
+  // UsageRecord operations
+  //---------------------------------------------------------------------------
+  public shared func addUsageRecord(
+    itemId : Nat,
+    date : Text,
+    quantity : Float,
+    purpose : Text,
+    notes : Text,
+  ) : async Nat {
+    let _ = findInventoryItem(itemId);
+
+    let id = nextUsageRecordId;
+    nextUsageRecordId += 1;
+
+    let record : UsageRecord = {
+      id;
+      itemId;
+      date;
+      quantity;
+      purpose;
+      notes;
+    };
+
+    usageRecords.add(id, record);
+    id;
+  };
+
+  public shared func updateUsageRecord(
+    id : Nat,
+    itemId : Nat,
+    date : Text,
+    quantity : Float,
+    purpose : Text,
+    notes : Text,
+  ) : async () {
+    let _ = findUsageRecord(id);
+
+    let updatedRecord : UsageRecord = {
+      id;
+      itemId;
+      date;
+      quantity;
+      purpose;
+      notes;
+    };
+    usageRecords.add(id, updatedRecord);
+  };
+
+  public shared func deleteUsageRecord(id : Nat) : async () {
+    let _ = findUsageRecord(id);
+    usageRecords.remove(id);
+  };
+
+  public query func getUsageRecords() : async [UsageRecord] {
+    usageRecords.values().toArray();
   };
 };

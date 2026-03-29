@@ -61,6 +61,32 @@ export const StaffMember = IDL.Record({
   'totalAdvancePaid' : IDL.Float64,
 });
 
+
+export const InventoryItem = IDL.Record({
+  'id' : IDL.Nat,
+  'name' : IDL.Text,
+  'category' : IDL.Text,
+  'unit' : IDL.Text,
+  'lowStockThreshold' : IDL.Float64,
+  'notes' : IDL.Text,
+});
+export const PurchaseRecord = IDL.Record({
+  'id' : IDL.Nat,
+  'itemId' : IDL.Nat,
+  'date' : IDL.Text,
+  'quantity' : IDL.Float64,
+  'price' : IDL.Float64,
+  'supplierName' : IDL.Text,
+  'notes' : IDL.Text,
+});
+export const UsageRecord = IDL.Record({
+  'id' : IDL.Nat,
+  'itemId' : IDL.Nat,
+  'date' : IDL.Text,
+  'quantity' : IDL.Float64,
+  'purpose' : IDL.Text,
+  'notes' : IDL.Text,
+});
 export const idlService = IDL.Service({
   '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
   'addAdvancePayment' : IDL.Func(
@@ -317,6 +343,42 @@ export const idlFactory = ({ IDL }) => {
         [],
         [],
       ),
+    'addInventoryItem' : IDL.Func(
+        [IDL.Text, IDL.Text, IDL.Text, IDL.Float64, IDL.Text],
+        [IDL.Nat],
+        [],
+      ),
+    'updateInventoryItem' : IDL.Func(
+        [IDL.Nat, IDL.Text, IDL.Text, IDL.Text, IDL.Float64, IDL.Text],
+        [],
+        [],
+      ),
+    'deleteInventoryItem' : IDL.Func([IDL.Nat], [], []),
+    'getInventoryItems' : IDL.Func([], [IDL.Vec(InventoryItem)], ['query']),
+    'addPurchaseRecord' : IDL.Func(
+        [IDL.Nat, IDL.Text, IDL.Float64, IDL.Float64, IDL.Text, IDL.Text],
+        [IDL.Nat],
+        [],
+      ),
+    'updatePurchaseRecord' : IDL.Func(
+        [IDL.Nat, IDL.Nat, IDL.Text, IDL.Float64, IDL.Float64, IDL.Text, IDL.Text],
+        [],
+        [],
+      ),
+    'deletePurchaseRecord' : IDL.Func([IDL.Nat], [], []),
+    'getPurchaseRecords' : IDL.Func([], [IDL.Vec(PurchaseRecord)], ['query']),
+    'addUsageRecord' : IDL.Func(
+        [IDL.Nat, IDL.Text, IDL.Float64, IDL.Text, IDL.Text],
+        [IDL.Nat],
+        [],
+      ),
+    'updateUsageRecord' : IDL.Func(
+        [IDL.Nat, IDL.Nat, IDL.Text, IDL.Float64, IDL.Text, IDL.Text],
+        [],
+        [],
+      ),
+    'deleteUsageRecord' : IDL.Func([IDL.Nat], [], []),
+    'getUsageRecords' : IDL.Func([], [IDL.Vec(UsageRecord)], ['query']),
   });
 };
 
