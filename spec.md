@@ -1,30 +1,24 @@
 # Shree Hari Dairy
 
 ## Current State
-- App has 5 tabs: Milk Records, Expenses, Staff, Animals, Buyer Payments
-- "Buyer Payments" page tracks money received from buyer every 10 days using `BuyerAdvancePayment` backend type (fields: id, date, amount, reason)
-- No separate "Buyer Advances" page exists
-- No pending/paid status on buyer payments
+The app has persistent "operation failed" errors on every save/edit operation. The root cause is `useActor.ts` calling `actor._initializeAccessControlWithSecret()` whenever an Internet Identity session is found in the browser. This method does not exist in the backend (main.mo), so it crashes silently and blocks all data operations.
+
+Additionally, `InventoryPage.tsx` exists in the codebase but is not used anywhere (not imported in App.tsx), adding dead weight.
 
 ## Requested Changes (Diff)
 
 ### Add
-- New "Buyer Advances" tab in navigation - separate page for tracking money given to buyers as advances, uses a new `BuyerAdvance` backend type (fields: id, date, buyerName, amount, note)
-- Pending / Paid status field on Buyer Payments page — stored in backend as part of `BuyerAdvancePayment` with a new `status` field (values: "pending" | "paid"), shown as color-coded badge in the table
-- Summary cards on Buyer Payments page: Total Received (paid), Total Pending
+- Nothing new.
 
 ### Modify
-- App.tsx: add "Buyer Advances" as a 6th nav tab between Animals and Buyer Payments
-- BuyerPaymentsPage: add status column (Paid = green badge, Pending = yellow badge), show pending/paid totals in summary cards
-- Add/Edit dialog for Buyer Payments: add status dropdown (Paid/Pending)
+- `useActor.ts`: Remove Internet Identity dependency entirely. Always create an anonymous actor. Never call `_initializeAccessControlWithSecret`.
+- `main.tsx`: Remove `InternetIdentityProvider` wrapper — no longer needed.
 
 ### Remove
-- Nothing
+- `InventoryPage.tsx`: Unused component, not referenced anywhere.
 
 ## Implementation Plan
-1. Update backend: add `BuyerAdvance` type + CRUD methods; add `status` field to `BuyerAdvancePayment`
-2. Update `backend.d.ts` with new types and methods
-3. Update `useQueries.ts` with new hooks for BuyerAdvances
-4. Create `BuyerAdvancesPage.tsx` for advances given to buyers
-5. Update `BuyerPaymentsPage.tsx` to include status field (Paid/Pending), summary cards
-6. Update `App.tsx` to add Buyer Advances tab
+1. Rewrite `useActor.ts` to always return anonymous actor, no II session check, no `_initializeAccessControlWithSecret` call.
+2. Update `main.tsx` to remove `InternetIdentityProvider` import and wrapper.
+3. Delete `InventoryPage.tsx`.
+4. Validate build passes.

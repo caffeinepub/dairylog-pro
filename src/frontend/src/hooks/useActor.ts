@@ -4,12 +4,12 @@ import type { backendInterface } from "../backend";
 import { createActorWithConfig } from "../config";
 
 const ACTOR_QUERY_KEY = "actor";
+
 export function useActor() {
   const queryClient = useQueryClient();
   const actorQuery = useQuery<backendInterface>({
     queryKey: [ACTOR_QUERY_KEY],
     queryFn: async () => {
-      // Always connect anonymously — app uses password-based access only
       return await createActorWithConfig();
     },
     staleTime: Number.POSITIVE_INFINITY,

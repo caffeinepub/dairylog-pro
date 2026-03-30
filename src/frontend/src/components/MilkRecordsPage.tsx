@@ -99,6 +99,99 @@ const emptyBuyerAdvanceForm = (): BuyerAdvanceForm => ({
   reason: "",
 });
 
+// Simple grouped bar chart for morning/evening milk
+function MilkBarChart({ records }: { records: MilkRecord[] }) {
+  // Take the last 14 days with data
+  const sorted = [...records]
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .slice(-14);
+
+  if (sorted.length === 0) return null;
+
+  const maxQty = Math.max(
+    ...sorted.flatMap((r) => [
+      Number(r.morningQuantity) || 0,
+      Number(r.eveningQuantity) || 0,
+    ]),
+    1,
+  );
+
+  return (
+    <div className="bg-card border border-border rounded-lg p-4 mb-6 no-print">
+      <h3 className="text-sm font-semibold text-muted-foreground mb-3">
+        Morning &amp; Evening Milk (Litres)
+      </h3>
+      <div
+        className="flex items-end gap-2 overflow-x-auto pb-2"
+        style={{ minHeight: 120 }}
+      >
+        {sorted.map((r) => {
+          const morning = Number(r.morningQuantity) || 0;
+          const evening = Number(r.eveningQuantity) || 0;
+          const mHeight = Math.round((morning / maxQty) * 90);
+          const eHeight = Math.round((evening / maxQty) * 90);
+          const label = r.date.slice(5); // MM-DD
+          return (
+            <div
+              key={r.date}
+              className="flex flex-col items-center gap-1 flex-shrink-0"
+              style={{ minWidth: 36 }}
+            >
+              <div className="flex items-end gap-0.5" style={{ height: 90 }}>
+                <div
+                  title={`Morning: ${morning}L`}
+                  style={{
+                    height: mHeight,
+                    width: 12,
+                    background: "#16a34a",
+                    borderRadius: "3px 3px 0 0",
+                  }}
+                />
+                <div
+                  title={`Evening: ${evening}L`}
+                  style={{
+                    height: eHeight,
+                    width: 12,
+                    background: "#facc15",
+                    borderRadius: "3px 3px 0 0",
+                  }}
+                />
+              </div>
+              <span className="text-[9px] text-muted-foreground">{label}</span>
+            </div>
+          );
+        })}
+      </div>
+      <div className="flex items-center gap-4 mt-2">
+        <span className="flex items-center gap-1 text-xs text-muted-foreground">
+          <span
+            style={{
+              display: "inline-block",
+              width: 12,
+              height: 10,
+              background: "#16a34a",
+              borderRadius: 2,
+            }}
+          />
+          Morning
+        </span>
+        <span className="flex items-center gap-1 text-xs text-muted-foreground">
+          <span
+            style={{
+              display: "inline-block",
+              width: 12,
+              height: 10,
+              background: "#facc15",
+              borderRadius: 2,
+            }}
+          />
+          Evening
+        </span>
+      </div>
+    </div>
+  );
+}
+
 export function MilkRecordsPage({ isAdmin = false }: { isAdmin?: boolean }) {
   const { data: records = [], isLoading } = useGetMilkRecords();
   const addMutation = useAddMilkRecord();
@@ -348,38 +441,8 @@ export function MilkRecordsPage({ isAdmin = false }: { isAdmin?: boolean }) {
 
   return (
     <div className="animate-fade-in">
-      {/* Fun Milk Photo Strip */}
-      <div className="flex gap-3 mb-6 overflow-x-auto pb-1 no-print">
-        {[
-          {
-            src: "/assets/generated/milk-pour.dim_800x600.jpg",
-            alt: "Fresh milk being poured",
-          },
-          {
-            src: "/assets/generated/milk-bottles.dim_800x600.jpg",
-            alt: "Farm milk bottles",
-          },
-          {
-            src: "/assets/generated/milk-buckets.dim_800x600.jpg",
-            alt: "Milk buckets",
-          },
-          {
-            src: "/assets/generated/dairy-cow.dim_800x600.jpg",
-            alt: "Happy dairy cow",
-          },
-        ].map((photo) => (
-          <div
-            key={photo.src}
-            className="flex-shrink-0 w-40 h-28 rounded-xl overflow-hidden shadow-md border border-gray-200"
-          >
-            <img
-              src={photo.src}
-              alt={photo.alt}
-              className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-            />
-          </div>
-        ))}
-      </div>
+      {/* Daily Milk Bar Chart */}
+      <MilkBarChart records={records} />
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-6 no-print">
