@@ -128,7 +128,16 @@ export function ExpensesPage({ isAdmin = false }: { isAdmin?: boolean }) {
   const [viewingPhoto, setViewingPhoto] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const totalPending = expenses.reduce((s, e) => {
+  const _curMonthKey = currentMonthKey();
+  const curMonthExpenses = expenses.filter((e) => {
+    const d = new Date(e.date);
+    return (
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}` ===
+      _curMonthKey
+    );
+  });
+
+  const totalPending = curMonthExpenses.reduce((s, e) => {
     const parsed = parseExpenseStatus(e.status);
     if (parsed.type === "pending") return s + e.amount;
     if (parsed.type === "partial")
@@ -136,14 +145,14 @@ export function ExpensesPage({ isAdmin = false }: { isAdmin?: boolean }) {
     return s;
   }, 0);
 
-  const totalPaid = expenses.reduce((s, e) => {
+  const totalPaid = curMonthExpenses.reduce((s, e) => {
     const parsed = parseExpenseStatus(e.status);
     if (parsed.type === "paid") return s + e.amount;
     if (parsed.type === "partial") return s + (parsed.paidAmount ?? 0);
     return s;
   }, 0);
 
-  const pendingCount = expenses.filter((e) => {
+  const pendingCount = curMonthExpenses.filter((e) => {
     const parsed = parseExpenseStatus(e.status);
     return parsed.type === "pending" || parsed.type === "partial";
   }).length;
@@ -290,7 +299,7 @@ export function ExpensesPage({ isAdmin = false }: { isAdmin?: boolean }) {
 
   const summaryCards = [
     {
-      label: "Pending Amount",
+      label: "Pending (This Month)",
       value: `₹${totalPending.toLocaleString("en-IN")}`,
       sub: `${pendingCount} expense${pendingCount !== 1 ? "s" : ""}`,
       icon: Clock,
@@ -299,9 +308,9 @@ export function ExpensesPage({ isAdmin = false }: { isAdmin?: boolean }) {
       border: "border-amber-200",
     },
     {
-      label: "Total Paid",
+      label: "Paid (This Month)",
       value: `₹${totalPaid.toLocaleString("en-IN")}`,
-      sub: `${expenses.filter((e) => parseExpenseStatus(e.status).type === "paid").length} paid`,
+      sub: `${curMonthExpenses.filter((e) => parseExpenseStatus(e.status).type === "paid").length} paid`,
       icon: CheckCircle2,
       color: "text-emerald-600",
       bg: "bg-emerald-50",
@@ -309,7 +318,7 @@ export function ExpensesPage({ isAdmin = false }: { isAdmin?: boolean }) {
     },
     {
       label: "Total Expenses",
-      value: expenses.length.toString(),
+      value: curMonthExpenses.length.toString(),
       sub: `₹${(totalPending + totalPaid).toLocaleString("en-IN")} total`,
       icon: Receipt,
       color: "text-primary",
@@ -317,7 +326,7 @@ export function ExpensesPage({ isAdmin = false }: { isAdmin?: boolean }) {
       border: "border-green-200",
     },
     {
-      label: "Grand Total",
+      label: "Total (This Month)",
       value: `₹${(totalPending + totalPaid).toLocaleString("en-IN")}`,
       sub: "All expenses combined",
       icon: IndianRupee,

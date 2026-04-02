@@ -182,15 +182,23 @@ export function BuyerPaymentsPage({ isAdmin = false }: { isAdmin?: boolean }) {
   const monthGroups = groupByMonth(payments, (p) => p.date);
   const curMonthKey = currentMonthKey();
 
-  const totalBillAll = payments.reduce(
+  const curMonthPayments = payments.filter((p) => {
+    const d = new Date(p.date);
+    return (
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}` ===
+      curMonthKey
+    );
+  });
+
+  const totalBillAll = curMonthPayments.reduce(
     (s, p) => s + decodePmtReason(p.reason, p.amount).totalBill,
     0,
   );
-  const totalReceivedAll = payments.reduce(
+  const totalReceivedAll = curMonthPayments.reduce(
     (s, p) => s + decodePmtReason(p.reason, p.amount).paymentReceived,
     0,
   );
-  const totalAdvanceDeductedAll = payments.reduce(
+  const totalAdvanceDeductedAll = curMonthPayments.reduce(
     (s, p) => s + decodePmtReason(p.reason, p.amount).advanceDeducted,
     0,
   );
@@ -342,7 +350,7 @@ export function BuyerPaymentsPage({ isAdmin = false }: { isAdmin?: boolean }) {
         </div>
       </div>
 
-      {/* Summary cards */}
+      {/* Summary cards - current month only */}
       {payments.length > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 8 }}
@@ -354,7 +362,10 @@ export function BuyerPaymentsPage({ isAdmin = false }: { isAdmin?: boolean }) {
               <IndianRupee className="h-4 w-4 text-white" />
             </div>
             <div>
-              <p className="text-xs text-blue-700 font-medium">Total Bill</p>
+              <p className="text-xs text-blue-700 font-medium">
+                Total Bill{" "}
+                <span className="font-normal opacity-70">(This Month)</span>
+              </p>
               <p className="text-base font-bold text-blue-800">
                 ₹
                 {totalBillAll.toLocaleString("en-IN", {
@@ -404,7 +415,7 @@ export function BuyerPaymentsPage({ isAdmin = false }: { isAdmin?: boolean }) {
               </p>
               <p className="text-base font-bold text-orange-800">
                 {(() => {
-                  const advLeft = payments.reduce((s, p) => {
+                  const advLeft = curMonthPayments.reduce((s, p) => {
                     const { totalBill, advanceDeducted, paymentReceived } =
                       decodePmtReason(p.reason, p.amount);
                     const adv = paymentReceived + advanceDeducted - totalBill;
