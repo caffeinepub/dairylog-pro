@@ -88,7 +88,6 @@ export const UsageRecord = IDL.Record({
   'notes' : IDL.Text,
 });
 export const idlService = IDL.Service({
-  '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
   'addAdvancePayment' : IDL.Func(
       [IDL.Nat, IDL.Text, IDL.Float64, IDL.Text],
       [IDL.Nat],
@@ -243,7 +242,6 @@ export const idlFactory = ({ IDL }) => {
   });
   
   return IDL.Service({
-    '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
     'addAdvancePayment' : IDL.Func(
         [IDL.Nat, IDL.Text, IDL.Float64, IDL.Text],
         [IDL.Nat],

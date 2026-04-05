@@ -170,7 +170,6 @@ export enum UserRole {
     guest = "guest"
 }
 export interface backendInterface {
-    _initializeAccessControlWithSecret(userSecret: string): Promise<void>;
     addAdvancePayment(staffId: bigint, date: string, amount: number, note: string): Promise<bigint>;
     addAnimal(serialNumber: string, animalType: string, name: string, semenDate: string, notes: string): Promise<bigint>;
     addBuyerAdvancePayment(date: string, amount: number, reason: string): Promise<bigint>;
@@ -217,20 +216,6 @@ export interface backendInterface {
 import type { UserProfile as _UserProfile, UserRole as _UserRole } from "./declarations/backend.did.d.ts";
 export class Backend implements backendInterface {
     constructor(private actor: ActorSubclass<_SERVICE>, private _uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, private _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, private processError?: (error: unknown) => never){}
-    async _initializeAccessControlWithSecret(arg0: string): Promise<void> {
-        if (this.processError) {
-            try {
-                const result = await this.actor._initializeAccessControlWithSecret(arg0);
-                return result;
-            } catch (e) {
-                this.processError(e);
-                throw new Error("unreachable");
-            }
-        } else {
-            const result = await this.actor._initializeAccessControlWithSecret(arg0);
-            return result;
-        }
-    }
     async addAdvancePayment(arg0: bigint, arg1: string, arg2: number, arg3: string): Promise<bigint> {
         if (this.processError) {
             try {

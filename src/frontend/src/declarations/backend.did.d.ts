@@ -86,7 +86,6 @@ export interface UsageRecord {
   'notes' : string,
 }
 export interface _SERVICE {
-  '_initializeAccessControlWithSecret' : ActorMethod<[string], undefined>,
   'addAdvancePayment' : ActorMethod<[bigint, string, number, string], bigint>,
   'addAnimal' : ActorMethod<[string, string, string, string, string], bigint>,
   'addBuyerAdvancePayment' : ActorMethod<[string, number, string], bigint>,
