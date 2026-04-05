@@ -63,7 +63,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import type { BuyerAdvancePayment, MilkRecord } from "../backend.d";
 
-const FAT_RATE = 9; // ₹9 per fat unit
+const MILK_RATE = 56; // ₹56 per litre
 
 const today = () => new Date().toISOString().split("T")[0];
 
@@ -1067,12 +1067,10 @@ export function MilkRecordsPage({ isAdmin = false }: { isAdmin?: boolean }) {
                     onChange={(e) => {
                       const qty = e.target.value;
                       setForm((f) => {
-                        const fat = Number.parseFloat(f.morningFat);
                         const q = Number.parseFloat(qty);
-                        const autoAmt =
-                          !Number.isNaN(q) && !Number.isNaN(fat)
-                            ? (q * fat * FAT_RATE).toFixed(2)
-                            : f.morningAmount;
+                        const autoAmt = !Number.isNaN(q)
+                          ? (q * MILK_RATE).toFixed(2)
+                          : f.morningAmount;
                         return {
                           ...f,
                           morningQuantity: qty,
@@ -1092,7 +1090,7 @@ export function MilkRecordsPage({ isAdmin = false }: { isAdmin?: boolean }) {
                   >
                     Fat %
                     <span className="text-amber-600 font-semibold bg-amber-100 px-1 rounded text-[10px]">
-                      ₹9/fat
+                      ₹56/L
                     </span>
                   </Label>
                   <Input
@@ -1103,20 +1101,10 @@ export function MilkRecordsPage({ isAdmin = false }: { isAdmin?: boolean }) {
                     max="10"
                     value={form.morningFat}
                     onChange={(e) => {
-                      const fat = e.target.value;
-                      setForm((f) => {
-                        const q = Number.parseFloat(f.morningQuantity);
-                        const ft = Number.parseFloat(fat);
-                        const autoAmt =
-                          !Number.isNaN(q) && !Number.isNaN(ft)
-                            ? (q * ft * FAT_RATE).toFixed(2)
-                            : f.morningAmount;
-                        return {
-                          ...f,
-                          morningFat: fat,
-                          morningAmount: autoAmt,
-                        };
-                      });
+                      setForm((f) => ({
+                        ...f,
+                        morningFat: e.target.value,
+                      }));
                     }}
                     placeholder="0.00"
                     className="mt-1"
@@ -1170,12 +1158,10 @@ export function MilkRecordsPage({ isAdmin = false }: { isAdmin?: boolean }) {
                     onChange={(e) => {
                       const qty = e.target.value;
                       setForm((f) => {
-                        const fat = Number.parseFloat(f.eveningFat);
                         const q = Number.parseFloat(qty);
-                        const autoAmt =
-                          !Number.isNaN(q) && !Number.isNaN(fat)
-                            ? (q * fat * FAT_RATE).toFixed(2)
-                            : f.eveningAmount;
+                        const autoAmt = !Number.isNaN(q)
+                          ? (q * MILK_RATE).toFixed(2)
+                          : f.eveningAmount;
                         return {
                           ...f,
                           eveningQuantity: qty,
@@ -1195,7 +1181,7 @@ export function MilkRecordsPage({ isAdmin = false }: { isAdmin?: boolean }) {
                   >
                     Fat %
                     <span className="text-indigo-600 font-semibold bg-indigo-100 px-1 rounded text-[10px]">
-                      ₹9/fat
+                      ₹56/L
                     </span>
                   </Label>
                   <Input
@@ -1206,20 +1192,10 @@ export function MilkRecordsPage({ isAdmin = false }: { isAdmin?: boolean }) {
                     max="10"
                     value={form.eveningFat}
                     onChange={(e) => {
-                      const fat = e.target.value;
-                      setForm((f) => {
-                        const q = Number.parseFloat(f.eveningQuantity);
-                        const ft = Number.parseFloat(fat);
-                        const autoAmt =
-                          !Number.isNaN(q) && !Number.isNaN(ft)
-                            ? (q * ft * FAT_RATE).toFixed(2)
-                            : f.eveningAmount;
-                        return {
-                          ...f,
-                          eveningFat: fat,
-                          eveningAmount: autoAmt,
-                        };
-                      });
+                      setForm((f) => ({
+                        ...f,
+                        eveningFat: e.target.value,
+                      }));
                     }}
                     placeholder="0.00"
                     className="mt-1"
